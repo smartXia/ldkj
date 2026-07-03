@@ -1,0 +1,100 @@
+﻿:root {
+  --header-height: 64px;
+  --color-brand: #ff3d45;
+  --color-brand-dark: #e93039;
+  --color-brand-soft: #fff0f1;
+  --color-ink: #111111;
+  --color-ink-muted: #62656d;
+  --color-ink-light: #8b8e96;
+  --color-surface: #ffffff;
+  --color-page: #f7f8fb;
+  --color-section: #f2f5f9;
+  --color-border: #edf0f5;
+  --color-gold: #ffd06b;
+  --color-black: #020202;
+  --shadow-card: 0 14px 34px rgba(26, 38, 66, 0.09);
+  --shadow-soft: 0 8px 26px rgba(255, 61, 69, 0.18);
+  --motion-fast: 180ms ease;
+  --motion: 260ms ease;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--color-ink);
+  background: #fff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+main {
+  overflow: hidden;
+}
+
+.container {
+  width: min(1040px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  :root { --header-height: 44px; }
+  .container { width: min(100% - 32px, 1040px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
