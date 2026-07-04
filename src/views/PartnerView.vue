@@ -103,11 +103,13 @@ onMounted(async () => {
           <span>需求描述</span>
           <textarea v-model="form.demand" rows="5"></textarea>
         </label>
-        <button type="submit" :disabled="status === 'submitting'">
-          {{ status === 'submitting' ? '提交中...' : '提交合作需求' }}
-        </button>
-        <p v-if="status === 'success'" class="form-tip success">提交成功，我们会尽快联系您。</p>
-        <p v-else-if="status === 'error'" class="form-tip error">{{ errorMessage }}</p>
+        <div class="partner-submit">
+          <button type="submit" :disabled="status === 'submitting'">
+            {{ status === 'submitting' ? '提交中...' : '提交合作需求' }}
+          </button>
+          <p v-if="status === 'success'" class="form-tip success">提交成功，我们会尽快联系您。</p>
+          <p v-else-if="status === 'error'" class="form-tip error">{{ errorMessage }}</p>
+        </div>
       </form>
 
       <aside class="partner-aside">
@@ -192,6 +194,7 @@ onMounted(async () => {
 .partner-form input,
 .partner-form textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid #e6e6e6;
   border-radius: 8px;
   padding: 13px 14px;
@@ -205,6 +208,14 @@ onMounted(async () => {
   outline: none;
 }
 
+.partner-submit {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .partner-form button {
   width: max-content;
   border: 0;
@@ -213,6 +224,7 @@ onMounted(async () => {
   background: #ff4848;
   color: #fff;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .partner-form button:disabled {
@@ -254,12 +266,17 @@ onMounted(async () => {
   border: 0;
   padding: 0;
   display: flex;
+  gap: 16px;
   justify-content: space-between;
   background: transparent;
   color: #111;
   font: inherit;
   font-weight: 700;
   text-align: left;
+}
+
+.faq-list button span {
+  flex: 0 0 auto;
 }
 
 .faq-list p {
@@ -272,6 +289,41 @@ onMounted(async () => {
   .partner-main,
   .partner-form {
     grid-template-columns: 1fr;
+  }
+
+  .partner-hero {
+    padding: 112px 24px 56px;
+  }
+
+  .partner-hero h1 {
+    font-size: 40px;
+  }
+
+  .partner-main {
+    margin: 48px auto 88px;
+  }
+}
+
+@media (max-width: 520px) {
+  .partner-main {
+    max-width: calc(100% - 32px);
+  }
+
+  .partner-hero {
+    padding: 96px 16px 44px;
+  }
+
+  .partner-hero h1 {
+    font-size: 34px;
+  }
+
+  .partner-submit {
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .partner-form button {
+    width: 100%;
   }
 }
 </style>
