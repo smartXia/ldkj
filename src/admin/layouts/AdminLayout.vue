@@ -29,7 +29,7 @@ function handleLogout() {
   <div class="admin-shell">
     <aside class="admin-sidebar">
       <div class="admin-brand">
-        <strong>灵动 CMS</strong>
+        <strong>灵动信息</strong>
         <span>内容管理</span>
       </div>
       <nav class="admin-nav" aria-label="后台导航">
@@ -47,7 +47,7 @@ function handleLogout() {
     <section class="admin-workspace">
       <header class="admin-topbar">
         <div>
-          <p>南京灵动官网</p>
+          <p>灵动信息后台</p>
           <h1>{{ pageTitle }}</h1>
         </div>
         <button class="admin-button ghost" type="button" @click="handleLogout">退出</button>

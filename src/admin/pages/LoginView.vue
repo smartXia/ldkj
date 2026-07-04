@@ -31,7 +31,7 @@ async function handleLogin() {
   <main class="admin-login">
     <section class="admin-login-card">
       <h1>管理端登录</h1>
-      <p class="admin-muted">南京灵动官网内容后台</p>
+      <p class="admin-muted">灵动信息内容后台</p>
       <form @submit.prevent="handleLogin">
         <div class="admin-field">
           <label for="username">账号</label>
