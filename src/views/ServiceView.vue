@@ -19,7 +19,7 @@ onMounted(async () => {
 
     <div class="service-grid">
       <article v-for="item in services" :key="item.id" class="service-card">
-        <img :src="item.image" :alt="item.title" loading="lazy" />
+        <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" />
         <div>
           <h2>{{ item.title }}</h2>
           <p>{{ item.summary }}</p>

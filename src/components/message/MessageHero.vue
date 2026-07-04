@@ -9,7 +9,7 @@ defineProps({
 
 <template>
   <section class="message-banner">
-    <img :src="content.image" alt="banner1" />
+    <img v-if="content.image" :src="content.image" :alt="content.title" />
     <h1>{{ content.title }}</h1>
   </section>
 </template>

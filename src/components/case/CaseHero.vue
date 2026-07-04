@@ -10,7 +10,7 @@ defineProps({
 <template>
   <section class="case-banner" :aria-label="content.title">
     <h1 class="sr-only">{{ content.title }}</h1>
-    <img :src="content.image" :alt="content.title" />
+    <img v-if="content.image" :src="content.image" :alt="content.title" />
   </section>
 </template>
 

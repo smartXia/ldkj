@@ -61,7 +61,7 @@ onBeforeUnmount(() => {
         :style="{ transitionDelay: `${Math.min((index % 3) * 90, 180)}ms` }"
       >
         <button class="case-link" type="button" :aria-label="`查看案例详情：${item.title}`" @click="emit('select', item)">
-          <img :src="item.image" :alt="item.title" loading="lazy" />
+          <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" />
           <div class="case-info">
             <h2>{{ item.title }}</h2>
             <div class="case-meta">

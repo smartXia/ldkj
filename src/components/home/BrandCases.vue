@@ -1,7 +1,13 @@
 <script setup>
-import { onMounted, onUnmounted, shallowRef } from 'vue'
-import { brandCases } from '../../data/siteContent'
+import { computed, onMounted, onUnmounted, shallowRef } from 'vue'
 import SectionHeading from './SectionHeading.vue'
+
+const props = defineProps({
+  cases: {
+    type: Array,
+    default: () => [],
+  },
+})
 
 const sectionTitle = '\u54c1\u724c\u5b9a\u5236\u670d\u52a1'
 const sectionSubtitle = '\u4ee5\u54c1\u724c\u76ee\u6807\u4e3a\u9a71\u52a8\u7684\u5b9a\u5236\u5316\u8425\u9500\u89e3\u51b3\u65b9\u6848'
@@ -12,6 +18,11 @@ const dotsLabel = '\u54c1\u724c\u5b9a\u5236\u670d\u52a1\u6848\u4f8b\u5207\u6362'
 const activeIndex = shallowRef(0)
 const moveDirection = shallowRef('next')
 let timer
+
+const brandCases = computed(() => props.cases.map((item, index) => ({
+  ...item,
+  number: item.number || String(index + 1).padStart(2, '0'),
+})))
 
 const brandBadges = [
   { logo: '\u7c73', name: '\u7c73\u5bb6', className: 'mijia' },
@@ -26,14 +37,15 @@ const brandBadges = [
 
 function setActive(index) {
   if (index === activeIndex.value) return
-  moveDirection.value = index > activeIndex.value || (activeIndex.value === brandCases.length - 1 && index === 0)
+  moveDirection.value = index > activeIndex.value || (activeIndex.value === brandCases.value.length - 1 && index === 0)
     ? 'next'
     : 'prev'
   activeIndex.value = index
 }
 
 function nextCase() {
-  setActive((activeIndex.value + 1) % brandCases.length)
+  if (!brandCases.value.length) return
+  setActive((activeIndex.value + 1) % brandCases.value.length)
 }
 
 function startAutoplay() {
@@ -61,7 +73,7 @@ onUnmounted(stopAutoplay)
 </script>
 
 <template>
-  <section class="case-section">
+  <section v-if="brandCases.length" class="case-section">
     <SectionHeading :title="sectionTitle" :subtitle="sectionSubtitle" />
 
     <div class="case-viewport" @mouseenter="stopAutoplay" @mouseleave="startAutoplay">
@@ -76,8 +88,8 @@ onUnmounted(stopAutoplay)
         >
           <div class="case-expanded">
             <div class="case-photo">
-              <img :src="item.image" :alt="item.summary" loading="lazy" />
-              <div class="brand-badge">
+              <img v-if="item.image" :src="item.image" :alt="item.summary || item.title" loading="lazy" />
+              <div v-if="brandBadges[index]" class="brand-badge">
                 <span :class="brandBadges[index].className">{{ brandBadges[index].logo }}</span>
                 <strong>{{ brandBadges[index].name }}</strong>
               </div>

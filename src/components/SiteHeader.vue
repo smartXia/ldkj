@@ -4,6 +4,12 @@ import { useRoute } from 'vue-router'
 import { useI18n } from '../composables/useI18n'
 
 const emit = defineEmits(['open-consult'])
+defineProps({
+  site: {
+    type: Object,
+    default: () => ({}),
+  },
+})
 const route = useRoute()
 const menuOpen = shallowRef(false)
 const languageOpen = shallowRef(false)
@@ -46,7 +52,8 @@ function closeLanguageOnFocusout(event) {
   <header class="site-header">
     <div class="header-inner">
       <RouterLink class="brand" to="/" aria-label="微思敦首页" @click="closeMenu">
-        <img src="/assets/wsd/logo.png" alt="微思敦官方Logo" />
+        <img v-if="site.logo" :src="site.logo" :alt="site.site_title || '网站 Logo'" />
+        <span v-else>{{ site.site_title || '南京灵动' }}</span>
       </RouterLink>
 
       <button
@@ -138,6 +145,13 @@ function closeLanguageOnFocusout(event) {
   height: 40px;
   object-fit: contain;
   display: block;
+}
+
+.brand span {
+  color: var(--color-ink);
+  font-size: 18px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .nav {

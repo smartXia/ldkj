@@ -31,7 +31,7 @@ onMounted(async () => {
       </div>
     </header>
 
-    <img class="detail-image" :src="caseItem.detailImage || caseItem.image" :alt="caseItem.title" />
+    <img v-if="caseItem.detailImage || caseItem.image" class="detail-image" :src="caseItem.detailImage || caseItem.image" :alt="caseItem.title" />
 
     <section class="detail-copy">
       <h2>项目复盘</h2>

@@ -30,7 +30,7 @@ onMounted(async () => {
       </p>
     </header>
 
-    <img class="article-cover" :src="article.image" :alt="article.title" />
+    <img v-if="article.image" class="article-cover" :src="article.image" :alt="article.title" />
 
     <section class="article-body">
       <p v-for="paragraph in article.content || [article.desc]" :key="paragraph">{{ paragraph }}</p>

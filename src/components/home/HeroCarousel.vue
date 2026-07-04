@@ -1,20 +1,29 @@
 ﻿<script setup>
 import { computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { heroSlides } from '../../data/siteContent'
+
+const props = defineProps({
+  slides: {
+    type: Array,
+    default: () => [],
+  },
+})
 
 const active = shallowRef(0)
-const currentSlide = computed(() => heroSlides[active.value])
+const visibleSlides = computed(() => props.slides.filter((item) => item.image))
+const currentSlide = computed(() => visibleSlides.value[active.value] || null)
 let timer
 
 function go(delta) {
-  active.value = (active.value + delta + heroSlides.length) % heroSlides.length
+  if (!visibleSlides.value.length) return
+  active.value = (active.value + delta + visibleSlides.value.length) % visibleSlides.value.length
 }
 
 onMounted(() => {
   if (window.matchMedia('(max-width: 768px)').matches) return
 
   timer = window.setInterval(() => {
-    active.value = (active.value + 1) % heroSlides.length
+    if (!visibleSlides.value.length) return
+    active.value = (active.value + 1) % visibleSlides.value.length
   }, 5000)
 })
 
@@ -24,15 +33,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section id="home" class="hero" aria-label="首页焦点图">
+  <section v-if="currentSlide" id="home" class="hero" aria-label="首页焦点图">
     <Transition name="hero-fade" mode="out-in">
       <img :key="currentSlide.image" class="hero-image" :src="currentSlide.image" :alt="currentSlide.title" />
     </Transition>
-    <button class="hero-arrow hero-arrow-left" type="button" aria-label="上一张" @click="go(-1)">‹</button>
-    <button class="hero-arrow hero-arrow-right" type="button" aria-label="下一张" @click="go(1)">›</button>
-    <div class="hero-dots" aria-label="轮播分页">
+    <button v-if="visibleSlides.length > 1" class="hero-arrow hero-arrow-left" type="button" aria-label="上一张" @click="go(-1)">‹</button>
+    <button v-if="visibleSlides.length > 1" class="hero-arrow hero-arrow-right" type="button" aria-label="下一张" @click="go(1)">›</button>
+    <div v-if="visibleSlides.length > 1" class="hero-dots" aria-label="轮播分页">
       <button
-        v-for="(slide, index) in heroSlides"
+        v-for="(slide, index) in visibleSlides"
         :key="slide.title"
         type="button"
         :class="{ active: active === index }"

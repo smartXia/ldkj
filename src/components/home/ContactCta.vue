@@ -71,7 +71,6 @@ async function submitForm() {
 
     <div class="consultation-main">
       <div class="consultation-left">
-        <img src="/assets/wsd/consulting/img_consultation.png" alt="" aria-hidden="true" />
       </div>
 
       <form class="consultation-form" novalidate @submit.prevent="submitForm">

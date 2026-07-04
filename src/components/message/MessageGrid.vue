@@ -60,7 +60,7 @@ onBeforeUnmount(() => {
         :href="article.href"
         :style="{ transitionDelay: `${Math.min((index % 3) * 90, 180)}ms` }"
       >
-        <span class="message-image">
+        <span v-if="article.image" class="message-image">
           <img :src="article.image" :alt="article.title" loading="lazy" />
         </span>
         <span class="message-content">

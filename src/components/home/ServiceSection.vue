@@ -1,7 +1,13 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, shallowRef, watch } from 'vue'
-import { services } from '../../data/siteContent'
 import SectionHeading from './SectionHeading.vue'
+
+const props = defineProps({
+  services: {
+    type: Array,
+    default: () => [],
+  },
+})
 
 const tabs = ['社媒广告', '达人内容', '营销培训', '社交电商', '口碑管理', '营销技术']
 const activeIndex = shallowRef(0)
@@ -60,8 +66,9 @@ const trainingPlatforms = [
   { label: '知乎', className: 'zhihu' }
 ]
 
-const activeService = computed(() => services[activeIndex.value])
-const videoSrc = computed(() => `/assets/wsd/service-video-${String(activeIndex.value + 1).padStart(2, '0')}.mp4`)
+const serviceItems = computed(() => props.services)
+const activeService = computed(() => serviceItems.value[activeIndex.value] || {})
+const videoSrc = computed(() => '')
 const isAdPanel = computed(() => activeIndex.value === 0)
 const isTrainingPanel = computed(() => activeIndex.value === 2)
 
@@ -172,7 +179,7 @@ onUnmounted(() => observer?.disconnect())
 
               <template v-else>
                 <h3>{{ activeService.title }}</h3>
-                <img class="service-image" :src="activeService.image" :alt="activeService.title" loading="lazy" />
+                <img v-if="activeService.image" class="service-image" :src="activeService.image" :alt="activeService.title" loading="lazy" />
               </template>
 
               <a class="service-more" href="#consult">了解更多详情 »</a>
@@ -180,7 +187,7 @@ onUnmounted(() => observer?.disconnect())
           </Transition>
         </article>
 
-        <button class="phone-demo" type="button" aria-label="播放或暂停手机视频" @click="toggleVideo">
+        <button v-if="videoSrc" class="phone-demo" type="button" aria-label="播放或暂停手机视频" @click="toggleVideo">
           <span class="phone-notch"></span>
           <video
             ref="videoRef"
@@ -245,7 +252,7 @@ onUnmounted(() => observer?.disconnect())
 
 .service-body {
   min-height: 594px;
-  background: #eef2f7 url("/assets/wsd/service-bg.png") center / cover no-repeat;
+  background: #eef2f7;
   overflow: visible;
 }
 

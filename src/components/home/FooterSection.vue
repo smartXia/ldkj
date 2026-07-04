@@ -7,10 +7,7 @@ const addresses = [
   '北京：北京市朝阳区百子湾路33号院6号楼万利中心A101'
 ]
 const socials = ['微信', '微博', '小红书', 'bilibili', '知']
-const qrCodes = [
-  ['微信公众号', '/assets/wsd/footer/wechat-qrcode.png'],
-  ['营销顾问', '/assets/wsd/footer/consultant-qrcode.png']
-]
+const qrCodes = []
 </script>
 
 <template>

@@ -1,6 +1,12 @@
 <script setup>
 import { onMounted, onUnmounted, shallowRef } from 'vue'
-import { marketingModules } from '../../data/siteContent'
+
+defineProps({
+  modules: {
+    type: Array,
+    default: () => [],
+  },
+})
 
 const sectionRef = shallowRef(null)
 const visible = shallowRef(false)
@@ -18,21 +24,20 @@ onUnmounted(() => observer?.disconnect())
 </script>
 
 <template>
-  <section ref="sectionRef" class="marketing-model" :class="{ visible }">
+  <section v-if="modules.length" ref="sectionRef" class="marketing-model" :class="{ visible }">
     <h1>基于社交媒体的数字化营销服务</h1>
     <div class="module-flow">
-      <template v-for="(item, index) in marketingModules" :key="item.title">
+      <template v-for="(item, index) in modules" :key="item.title">
           <article class="module-card" :style="{ transitionDelay: `${220 + index * 360}ms` }">
-          <img :src="item.image" :alt="item.title" loading="lazy" />
+          <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" />
           <p>{{ item.title }}</p>
         </article>
         <span
-          v-if="index < marketingModules.length - 1"
+          v-if="index < modules.length - 1"
           class="flow-arrow"
           :style="{ transitionDelay: `${520 + index * 360}ms` }"
           aria-hidden="true"
         >
-          <img src="/assets/wsd/marketing-arrow.png" alt="" loading="lazy" />
         </span>
       </template>
     </div>

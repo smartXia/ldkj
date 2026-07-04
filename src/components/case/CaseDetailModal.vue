@@ -32,7 +32,7 @@ onBeforeUnmount(() => {
     <div class="case-modal" role="dialog" aria-modal="true" :aria-label="caseItem.title">
       <button class="modal-backdrop" type="button" aria-label="关闭案例详情" @click="emit('close')"></button>
       <button class="modal-close" type="button" aria-label="关闭" @click="emit('close')"></button>
-      <div class="modal-panel">
+      <div v-if="caseItem.detailImage" class="modal-panel">
         <img :src="caseItem.detailImage" :alt="caseItem.title" />
       </div>
     </div>

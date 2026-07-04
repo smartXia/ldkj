@@ -85,7 +85,7 @@ onUnmounted(() => {
   position: relative;
   min-height: 536px;
   color: #fff;
-  background: #383e44 url('/assets/wsd/intro-bg.png') center / cover no-repeat;
+  background: #383e44;
   overflow: hidden;
 }
 

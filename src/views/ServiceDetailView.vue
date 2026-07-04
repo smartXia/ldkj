@@ -27,7 +27,7 @@ onMounted(async () => {
         <h1>{{ service.title }}</h1>
         <p>{{ service.summary }}</p>
       </div>
-      <img :src="service.image" :alt="service.title" />
+      <img v-if="service.image" :src="service.image" :alt="service.title" />
     </header>
 
     <section class="detail-section">
