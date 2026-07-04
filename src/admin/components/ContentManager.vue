@@ -34,16 +34,73 @@ const saving = ref(false)
 const error = ref('')
 const drawerOpen = ref(false)
 const editingId = ref(null)
+const editingRow = ref(null)
 const filters = reactive({ keyword: '', page: 1, pageSize: 10 })
 const form = reactive({})
 
 const isEditing = computed(() => editingId.value !== null)
 
+function fieldAliases(key) {
+  const aliases = {
+    publishedAt: ['published_at', 'date'],
+    updatedAt: ['updated_at'],
+    createdAt: ['created_at'],
+    cover: ['cover_url', 'image'],
+    image: ['cover_url', 'cover'],
+    playbook: ['strategy', 'method'],
+    metrics: ['core_metrics'],
+  }
+  return [key, ...(aliases[key] || [])]
+}
+
+function getFieldValue(row, key) {
+  for (const alias of fieldAliases(key)) {
+    const value = row?.[alias]
+    if (value !== undefined && value !== null && value !== '') return value
+  }
+  return ''
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function applyCanonicalAliases(payload) {
+  const aliasTargets = {
+    cover: ['cover_url', 'image'],
+    image: ['cover_url', 'cover'],
+    playbook: ['strategy', 'method'],
+    metrics: ['core_metrics'],
+    publishedAt: ['published_at', 'date'],
+  }
+
+  Object.entries(aliasTargets).forEach(([key, targets]) => {
+    if (!(key in payload)) return
+    targets.forEach((target) => {
+      payload[target] = payload[key]
+    })
+  })
+
+  return payload
+}
+
+function buildPayload() {
+  return applyCanonicalAliases({
+    ...(isEditing.value ? editingRow.value || {} : {}),
+    ...form,
+  })
+}
+
 function resetForm(row = {}) {
   props.fields.forEach((field) => {
-    form[field.key] = row[field.key] ?? field.default ?? ''
+    const value = getFieldValue(row, field.key)
+    form[field.key] = field.type === 'datetime-local'
+      ? toDateTimeLocalValue(value)
+      : value || field.default || ''
   })
   editingId.value = row.id ?? null
+  editingRow.value = row.id ? { ...row } : null
 }
 
 async function fetchRows() {
@@ -78,10 +135,11 @@ async function handleSave() {
   error.value = ''
 
   try {
+    const payload = buildPayload()
     if (isEditing.value) {
-      await update(props.resource, editingId.value, { ...form })
+      await update(props.resource, editingId.value, payload)
     } else {
-      await create(props.resource, { ...form })
+      await create(props.resource, payload)
     }
     drawerOpen.value = false
     await fetchRows()
@@ -104,7 +162,7 @@ async function handleDelete(row) {
 }
 
 function renderCell(row, column) {
-  const value = row[column.key]
+  const value = getFieldValue(row, column.key)
   if (column.type === 'date' && value) {
     return new Date(value).toLocaleString()
   }

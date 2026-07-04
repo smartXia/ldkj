@@ -2,49 +2,66 @@ package main
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 type memoryStore struct {
-	site       SiteConfig
-	banner     Banner
-	seo        map[string]SEOSetting
-	services   map[int64]Service
-	cases      map[int64]Case
-	news       map[int64]News
-	forms      map[int64]LeadForm
-	pages      map[int64]StaticPage
-	faqs       map[int64]PartnerFAQ
-	logs       []OperationLog
-	nextServiceID int64
-	nextCaseID int64
-	nextNewsID int64
-	nextFormID int64
-	nextPageID int64
-	nextFAQID  int64
-	nextLogID  int64
+	site               SiteConfig
+	banner             Banner
+	banners            map[int64]Banner
+	seo                map[string]SEOSetting
+	admins             map[string]AdminUser
+	services           map[int64]Service
+	cases              map[int64]Case
+	news               map[int64]News
+	forms              map[int64]LeadForm
+	pages              map[int64]StaticPage
+	faqs               map[int64]PartnerFAQ
+	media              map[int64]MediaAsset
+	emailSettings      EmailSetting
+	notifications      map[int64]EmailNotification
+	logs               []OperationLog
+	nextBannerID       int64
+	nextServiceID      int64
+	nextCaseID         int64
+	nextNewsID         int64
+	nextFormID         int64
+	nextPageID         int64
+	nextFAQID          int64
+	nextMediaID        int64
+	nextNotificationID int64
+	nextLogID          int64
 }
 
 func newMemoryStore() *memoryStore {
 	return &memoryStore{
-		site:       SiteConfig{ID: 1, SiteTitle: "Nanjing Lingdong Information Technology Website"},
-		banner:     Banner{ID: 1, Title: "Lingdong Information", IsPublished: true},
-		seo:        map[string]SEOSetting{"home": {ID: 1, PageKey: "home", Title: "Nanjing Lingdong Information Technology"}},
-		services:   make(map[int64]Service),
-		cases:      make(map[int64]Case),
-		news:       make(map[int64]News),
-		forms:      make(map[int64]LeadForm),
-		pages:      make(map[int64]StaticPage),
-		faqs:       make(map[int64]PartnerFAQ),
-		logs:       []OperationLog{},
-		nextServiceID: 1,
-		nextCaseID: 1,
-		nextNewsID: 1,
-		nextFormID: 1,
-		nextPageID: 1,
-		nextFAQID:  1,
-		nextLogID:  1,
+		site:               SiteConfig{ID: 1, SiteTitle: "Nanjing Lingdong Information Technology Website"},
+		banner:             Banner{ID: 1, Title: "Lingdong Information", IsPublished: true},
+		banners:            make(map[int64]Banner),
+		seo:                map[string]SEOSetting{"home": {ID: 1, PageKey: "home", Title: "Nanjing Lingdong Information Technology"}},
+		admins:             make(map[string]AdminUser),
+		services:           make(map[int64]Service),
+		cases:              make(map[int64]Case),
+		news:               make(map[int64]News),
+		forms:              make(map[int64]LeadForm),
+		pages:              make(map[int64]StaticPage),
+		faqs:               make(map[int64]PartnerFAQ),
+		media:              make(map[int64]MediaAsset),
+		emailSettings:      EmailSetting{ID: 1, SMTPPort: 465, IsSSL: true},
+		notifications:      make(map[int64]EmailNotification),
+		logs:               []OperationLog{},
+		nextBannerID:       1,
+		nextServiceID:      1,
+		nextCaseID:         1,
+		nextNewsID:         1,
+		nextFormID:         1,
+		nextPageID:         1,
+		nextFAQID:          1,
+		nextMediaID:        1,
+		nextNotificationID: 1,
+		nextLogID:          1,
 	}
 }
 
@@ -60,14 +77,106 @@ func (m *memoryStore) SaveSiteConfig(_ context.Context, site SiteConfig) (SiteCo
 }
 
 func (m *memoryStore) GetBanner(context.Context) (Banner, error) {
+	if len(m.banners) > 0 {
+		items := sortedBanners(m.banners)
+		for _, item := range items {
+			if item.IsPublished {
+				return normalizeBanner(item), nil
+			}
+		}
+		return normalizeBanner(items[0]), nil
+	}
 	return normalizeBanner(m.banner), nil
 }
 
 func (m *memoryStore) SaveBanner(_ context.Context, banner Banner) (Banner, error) {
-	banner.ID = 1
+	if banner.ID == 0 {
+		banner.ID = 1
+	}
 	banner.UpdatedAt = nowString()
 	m.banner = normalizeBanner(banner)
+	m.banners[banner.ID] = m.banner
+	if banner.ID >= m.nextBannerID {
+		m.nextBannerID = banner.ID + 1
+	}
 	return m.banner, nil
+}
+
+func (m *memoryStore) ListBanners(_ context.Context, opts ListOptions) (ListResult[Banner], error) {
+	items := sortedBanners(m.banners)
+	if len(items) == 0 && m.banner.ID != 0 {
+		items = []Banner{normalizeBanner(m.banner)}
+	}
+	filtered := make([]Banner, 0, len(items))
+	for _, item := range items {
+		if opts.Status == "" || item.Status == opts.Status {
+			filtered = append(filtered, normalizeBanner(item))
+		}
+	}
+	return paginate(filtered, opts), nil
+}
+
+func (m *memoryStore) GetBannerByID(_ context.Context, id int64) (Banner, error) {
+	item, ok := m.banners[id]
+	if !ok {
+		if id == 1 && m.banner.ID == 1 {
+			return normalizeBanner(m.banner), nil
+		}
+		return Banner{}, notFound("banner not found")
+	}
+	return normalizeBanner(item), nil
+}
+
+func (m *memoryStore) CreateBanner(_ context.Context, banner Banner) (Banner, error) {
+	banner.ID = m.nextBannerID
+	m.nextBannerID++
+	banner.UpdatedAt = nowString()
+	banner = normalizeBanner(banner)
+	m.banners[banner.ID] = banner
+	if banner.ID == 1 {
+		m.banner = banner
+	}
+	return banner, nil
+}
+
+func (m *memoryStore) UpdateBanner(_ context.Context, id int64, banner Banner) (Banner, error) {
+	old, ok := m.banners[id]
+	if !ok {
+		return Banner{}, notFound("banner not found")
+	}
+	banner.ID = id
+	banner.UpdatedAt = nowString()
+	if banner.Page == "" {
+		banner.Page = old.Page
+	}
+	banner = normalizeBanner(banner)
+	m.banners[id] = banner
+	if id == 1 {
+		m.banner = banner
+	}
+	return banner, nil
+}
+
+func (m *memoryStore) DeleteBanner(_ context.Context, id int64) error {
+	if _, ok := m.banners[id]; !ok {
+		return notFound("banner not found")
+	}
+	delete(m.banners, id)
+	return nil
+}
+
+func sortedBanners(items map[int64]Banner) []Banner {
+	out := make([]Banner, 0, len(items))
+	for _, item := range items {
+		out = append(out, normalizeBanner(item))
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Sort == out[j].Sort {
+			return out[i].ID < out[j].ID
+		}
+		return out[i].Sort < out[j].Sort
+	})
+	return out
 }
 
 func (m *memoryStore) GetSEO(_ context.Context, page string) (SEOSetting, error) {
@@ -93,6 +202,14 @@ func (m *memoryStore) ListSEO(context.Context) ([]SEOSetting, error) {
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func (m *memoryStore) GetAdminUser(_ context.Context, username string) (AdminUser, error) {
+	item, ok := m.admins[username]
+	if !ok || item.Status == "disabled" {
+		return AdminUser{}, notFound("admin user not found")
+	}
+	return item, nil
 }
 
 func (m *memoryStore) ListServices(_ context.Context, opts ListOptions) (ListResult[Service], error) {
@@ -418,6 +535,47 @@ func (m *memoryStore) LogOperation(_ context.Context, log OperationLog) error {
 	if len(m.logs) > 100 {
 		m.logs = m.logs[:100]
 	}
+	return nil
+}
+
+func (m *memoryStore) CreateMediaAsset(_ context.Context, asset MediaAsset) (MediaAsset, error) {
+	asset.ID = m.nextMediaID
+	m.nextMediaID++
+	if asset.CreatedAt == "" {
+		asset.CreatedAt = nowString()
+	}
+	m.media[asset.ID] = asset
+	return asset, nil
+}
+
+func (m *memoryStore) GetEmailSetting(context.Context) (EmailSetting, error) {
+	return m.emailSettings, nil
+}
+
+func (m *memoryStore) CreateEmailNotification(_ context.Context, notification EmailNotification) (EmailNotification, error) {
+	notification.ID = m.nextNotificationID
+	m.nextNotificationID++
+	if notification.Status == "" {
+		notification.Status = "pending"
+	}
+	if notification.CreatedAt == "" {
+		notification.CreatedAt = nowString()
+	}
+	m.notifications[notification.ID] = notification
+	return notification, nil
+}
+
+func (m *memoryStore) UpdateEmailNotificationStatus(_ context.Context, id int64, status, message string) error {
+	notification, ok := m.notifications[id]
+	if !ok {
+		return notFound("notification not found")
+	}
+	notification.Status = status
+	notification.ErrorMessage = message
+	if status == "sent" {
+		notification.SentAt = nowString()
+	}
+	m.notifications[id] = notification
 	return nil
 }
 

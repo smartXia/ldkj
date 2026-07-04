@@ -64,24 +64,24 @@ type Case struct {
 }
 
 type News struct {
-	ID          int64  `json:"id"`
-	Title       string `json:"title"`
-	Slug        string `json:"slug"`
-	Category    string `json:"category"`
-	CoverURL    string `json:"cover_url"`
-	Cover       string `json:"cover,omitempty"`
-	Image       string `json:"image,omitempty"`
-	Summary     string `json:"summary"`
-	Desc        string `json:"desc,omitempty"`
-	Content     string `json:"content"`
-	Status      string `json:"status"`
-	PublishedAt string `json:"published_at"`
+	ID            int64  `json:"id"`
+	Title         string `json:"title"`
+	Slug          string `json:"slug"`
+	Category      string `json:"category"`
+	CoverURL      string `json:"cover_url"`
+	Cover         string `json:"cover,omitempty"`
+	Image         string `json:"image,omitempty"`
+	Summary       string `json:"summary"`
+	Desc          string `json:"desc,omitempty"`
+	Content       string `json:"content"`
+	Status        string `json:"status"`
+	PublishedAt   string `json:"published_at"`
 	PublishedAtUI string `json:"publishedAt,omitempty"`
-	Date        string `json:"date,omitempty"`
-	CreatedAt   string `json:"created_at,omitempty"`
-	CreatedAtUI string `json:"createdAt,omitempty"`
-	UpdatedAt   string `json:"updated_at,omitempty"`
-	UpdatedAtUI string `json:"updatedAt,omitempty"`
+	Date          string `json:"date,omitempty"`
+	CreatedAt     string `json:"created_at,omitempty"`
+	CreatedAtUI   string `json:"createdAt,omitempty"`
+	UpdatedAt     string `json:"updated_at,omitempty"`
+	UpdatedAtUI   string `json:"updatedAt,omitempty"`
 }
 
 type LeadForm struct {
@@ -102,25 +102,25 @@ type LeadForm struct {
 }
 
 type Service struct {
-	ID          int64    `json:"id"`
-	Slug        string   `json:"slug"`
-	Title       string   `json:"title"`
-	Subtitle    string   `json:"subtitle"`
-	Summary     string   `json:"summary"`
-	CoverURL    string   `json:"cover_url"`
-	Image       string   `json:"image,omitempty"`
-	IconURL     string   `json:"icon_url"`
-	Content     string   `json:"content"`
-	Highlights  []string `json:"highlights,omitempty"`
-	HighlightText string `json:"highlight_text,omitempty"`
-	Process     []string `json:"process,omitempty"`
-	ProcessText string `json:"process_text,omitempty"`
-	SortOrder   int      `json:"sort_order"`
-	Status      string   `json:"status"`
-	CreatedAt   string   `json:"created_at,omitempty"`
-	CreatedAtUI string   `json:"createdAt,omitempty"`
-	UpdatedAt   string   `json:"updated_at,omitempty"`
-	UpdatedAtUI string   `json:"updatedAt,omitempty"`
+	ID            int64    `json:"id"`
+	Slug          string   `json:"slug"`
+	Title         string   `json:"title"`
+	Subtitle      string   `json:"subtitle"`
+	Summary       string   `json:"summary"`
+	CoverURL      string   `json:"cover_url"`
+	Image         string   `json:"image,omitempty"`
+	IconURL       string   `json:"icon_url"`
+	Content       string   `json:"content"`
+	Highlights    []string `json:"highlights,omitempty"`
+	HighlightText string   `json:"highlight_text,omitempty"`
+	Process       []string `json:"process,omitempty"`
+	ProcessText   string   `json:"process_text,omitempty"`
+	SortOrder     int      `json:"sort_order"`
+	Status        string   `json:"status"`
+	CreatedAt     string   `json:"created_at,omitempty"`
+	CreatedAtUI   string   `json:"createdAt,omitempty"`
+	UpdatedAt     string   `json:"updated_at,omitempty"`
+	UpdatedAtUI   string   `json:"updatedAt,omitempty"`
 }
 
 type StaticPage struct {
@@ -156,16 +156,66 @@ type DashboardStats struct {
 }
 
 type OperationLog struct {
-	ID        int64  `json:"id"`
-	UserID    int64  `json:"user_id,omitempty"`
-	Username  string `json:"username"`
-	User      string `json:"user,omitempty"`
-	Action    string `json:"action"`
-	Module    string `json:"module"`
-	Target    string `json:"target,omitempty"`
-	TargetID  int64  `json:"target_id,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"user_id,omitempty"`
+	Username    string `json:"username"`
+	User        string `json:"user,omitempty"`
+	Action      string `json:"action"`
+	Module      string `json:"module"`
+	Target      string `json:"target,omitempty"`
+	TargetID    int64  `json:"target_id,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
 	CreatedAtUI string `json:"createdAt,omitempty"`
+}
+
+type AdminUser struct {
+	ID           int64    `json:"id"`
+	Username     string   `json:"username"`
+	PasswordHash string   `json:"-"`
+	RealName     string   `json:"real_name,omitempty"`
+	Status       string   `json:"status"`
+	Roles        []string `json:"roles,omitempty"`
+	Permissions  []string `json:"permissions,omitempty"`
+}
+
+type MediaAsset struct {
+	ID           int64  `json:"id"`
+	OriginalName string `json:"original_name"`
+	FileName     string `json:"file_name"`
+	FilePath     string `json:"file_path"`
+	FileURL      string `json:"file_url"`
+	MimeType     string `json:"mime_type"`
+	FileSize     int64  `json:"file_size"`
+	BizType      string `json:"biz_type"`
+	RefTable     string `json:"ref_table,omitempty"`
+	RefID        int64  `json:"ref_id,omitempty"`
+	UploaderID   int64  `json:"uploader_id,omitempty"`
+	CreatedAt    string `json:"created_at,omitempty"`
+}
+
+type EmailSetting struct {
+	ID           int64  `json:"id"`
+	SMTPHost     string `json:"smtp_host"`
+	SMTPPort     int    `json:"smtp_port"`
+	SMTPUser     string `json:"smtp_user"`
+	SMTPPassword string `json:"-"`
+	SenderEmail  string `json:"sender_email"`
+	SenderName   string `json:"sender_name"`
+	Recipients   string `json:"recipients"`
+	IsSSL        bool   `json:"is_ssl"`
+	IsEnabled    bool   `json:"is_enabled"`
+}
+
+type EmailNotification struct {
+	ID           int64  `json:"id"`
+	LeadFormID   int64  `json:"lead_form_id"`
+	Recipient    string `json:"recipient"`
+	Subject      string `json:"subject"`
+	Content      string `json:"content"`
+	Status       string `json:"status"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	SentAt       string `json:"sent_at,omitempty"`
+	CreatedAt    string `json:"created_at,omitempty"`
 }
 
 type ListOptions struct {

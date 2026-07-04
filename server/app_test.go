@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -160,14 +161,14 @@ func TestAdminAuthCrudCSVAndUpload(t *testing.T) {
 func TestPublicServicesPartnerAndAdminDashboard(t *testing.T) {
 	store := newMemoryStore()
 	store.services[1] = Service{
-		ID:          1,
-		Title:       "Social Service",
-		Slug:        "social-service",
-		Summary:     "service summary",
-		CoverURL:    "/oss/service.png",
-		Status:      "published",
-		Highlights:  []string{"strategy", "content"},
-		Process:     []string{"diagnose", "deliver"},
+		ID:         1,
+		Title:      "Social Service",
+		Slug:       "social-service",
+		Summary:    "service summary",
+		CoverURL:   "/oss/service.png",
+		Status:     "published",
+		Highlights: []string{"strategy", "content"},
+		Process:    []string{"diagnose", "deliver"},
 	}
 	store.faqs[1] = PartnerFAQ{ID: 1, Question: "How soon?", Answer: "Within 24 hours.", IsPublished: true}
 	store.logs = append(store.logs, OperationLog{ID: 1, Username: "admin", Action: "login", Module: "auth", CreatedAt: nowString()})
@@ -251,4 +252,178 @@ func extractJSONToken(t *testing.T, body string) string {
 func TestMemoryStoreSatisfiesStore(t *testing.T) {
 	var _ Store = (*memoryStore)(nil)
 	_, _ = context.Background(), t
+}
+
+func TestSanitizeHTMLRemovesDangerousMarkup(t *testing.T) {
+	input := `<p onclick="alert(1)">ok</p><img src="/oss/a.png" onerror="alert(1)"><a href="javascript:alert(1)">bad</a><script>alert(1)</script>`
+	clean := sanitizeHTML(input)
+
+	for _, forbidden := range []string{"onclick", "onerror", "javascript:", "<script"} {
+		if strings.Contains(strings.ToLower(clean), forbidden) {
+			t.Fatalf("expected dangerous HTML to be removed, got %s", clean)
+		}
+	}
+	if !strings.Contains(clean, `<p>ok</p>`) || !strings.Contains(clean, `<img src="/oss/a.png">`) {
+		t.Fatalf("expected safe tags to be preserved, got %s", clean)
+	}
+}
+
+func TestAdminLoginUsesStoreUserRolesAndPermissions(t *testing.T) {
+	store := newMemoryStore()
+	store.admins["editor"] = AdminUser{
+		ID:           7,
+		Username:     "editor",
+		PasswordHash: hashPassword("secret"),
+		Status:       "active",
+		Roles:        []string{"editor"},
+		Permissions:  []string{"content:read", "content:write"},
+	}
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "env-secret", TokenSecret: "test"}, store)
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/login", strings.NewReader(`{"username":"editor","password":"secret"}`))
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected store user login success, got %d: %s", resp.Code, resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), `"roles":["editor"]`) || !strings.Contains(resp.Body.String(), `"permissions":["content:read","content:write"]`) {
+		t.Fatalf("expected roles and permissions in login response, got %s", resp.Body.String())
+	}
+}
+
+func TestAdminBannersSupportMultipleItems(t *testing.T) {
+	store := newMemoryStore()
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+	token := createToken("admin", "test", time.Hour)
+
+	for _, body := range []string{
+		`{"title":"Hero A","image_url":"/oss/a.png","status":"enabled","sort":2}`,
+		`{"title":"Hero B","image_url":"/oss/b.png","status":"enabled","sort":1}`,
+	} {
+		resp := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/admin/banners", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		app.ServeHTTP(resp, req)
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("expected banner create success, got %d: %s", resp.Code, resp.Body.String())
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/banners", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected banner list success, got %d: %s", resp.Code, resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), `"total":2`) || !strings.Contains(resp.Body.String(), `"title":"Hero B"`) {
+		t.Fatalf("expected multiple banners sorted by sort order, got %s", resp.Body.String())
+	}
+
+	resp = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodDelete, "/api/admin/banners/1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || len(store.banners) != 1 {
+		t.Fatalf("expected banner delete to remove item, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestUploadPersistsMediaAsset(t *testing.T) {
+	store := newMemoryStore()
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test", UploadDir: t.TempDir()}, store)
+	token := createToken("admin", "test", time.Hour)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("type", "banner")
+	part, err := writer.CreateFormFile("file", "banner.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = part.Write([]byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x02, 0x00, 0x00, 0x00,
+	})
+	_ = writer.Close()
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/upload", &body)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	app.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("expected upload success, got %d: %s", resp.Code, resp.Body.String())
+	}
+	if len(store.media) != 1 || store.media[1].BizType != "banner" || store.media[1].OriginalName != "banner.png" {
+		t.Fatalf("expected media asset to be persisted, got %#v", store.media)
+	}
+}
+
+func TestFormSubmissionCreatesEmailNotificationRecordWhenEnabled(t *testing.T) {
+	store := newMemoryStore()
+	store.emailSettings.IsEnabled = true
+	store.emailSettings.Recipients = "ops@example.com"
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/public/forms", strings.NewReader(`{"name":"Zhang San","phone":"13800138000","company":"Acme","requirement":"Need service"}`))
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("expected form create success, got %d: %s", resp.Code, resp.Body.String())
+	}
+	if len(store.notifications) != 1 {
+		t.Fatalf("expected one notification record, got %#v", store.notifications)
+	}
+	if store.notifications[1].LeadFormID != 1 || store.notifications[1].Status == "" {
+		t.Fatalf("expected notification to reference form and have status, got %#v", store.notifications[1])
+	}
+}
+
+func TestCaseAndNewsWritesOperationLogs(t *testing.T) {
+	store := newMemoryStore()
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+	token := createToken("admin", "test", time.Hour)
+
+	actions := []struct {
+		path string
+		body string
+	}{
+		{"/api/admin/cases", `{"title":"Case","slug":"case","content":"body","status":"published"}`},
+		{"/api/admin/news", `{"title":"News","slug":"news","content":"body","status":"published"}`},
+	}
+	for _, action := range actions {
+		resp := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, action.path, strings.NewReader(action.body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		app.ServeHTTP(resp, req)
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("expected create success for %s, got %d: %s", action.path, resp.Code, resp.Body.String())
+		}
+	}
+
+	data, _ := json.Marshal(store.logs)
+	if !strings.Contains(string(data), `"module":"cases"`) || !strings.Contains(string(data), `"module":"news"`) {
+		t.Fatalf("expected case and news operation logs, got %s", data)
+	}
+}
+
+func TestSanitizeNewsUsesPublishedAtAlias(t *testing.T) {
+	item := sanitizeNews(News{
+		Title:         "News",
+		PublishedAtUI: "2026-07-05T10:30",
+	})
+
+	if item.PublishedAt != "2026-07-05 10:30:00" || item.PublishedAtUI != "2026-07-05 10:30:00" {
+		t.Fatalf("expected publishedAt alias to be preserved, got published_at=%q publishedAt=%q", item.PublishedAt, item.PublishedAtUI)
+	}
 }

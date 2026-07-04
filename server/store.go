@@ -7,9 +7,15 @@ type Store interface {
 	SaveSiteConfig(context.Context, SiteConfig) (SiteConfig, error)
 	GetBanner(context.Context) (Banner, error)
 	SaveBanner(context.Context, Banner) (Banner, error)
+	ListBanners(context.Context, ListOptions) (ListResult[Banner], error)
+	GetBannerByID(context.Context, int64) (Banner, error)
+	CreateBanner(context.Context, Banner) (Banner, error)
+	UpdateBanner(context.Context, int64, Banner) (Banner, error)
+	DeleteBanner(context.Context, int64) error
 	GetSEO(context.Context, string) (SEOSetting, error)
 	SaveSEO(context.Context, SEOSetting) (SEOSetting, error)
 	ListSEO(context.Context) ([]SEOSetting, error)
+	GetAdminUser(context.Context, string) (AdminUser, error)
 
 	ListServices(context.Context, ListOptions) (ListResult[Service], error)
 	GetService(context.Context, string, bool) (Service, error)
@@ -47,4 +53,8 @@ type Store interface {
 
 	Dashboard(context.Context) (DashboardStats, []OperationLog, error)
 	LogOperation(context.Context, OperationLog) error
+	CreateMediaAsset(context.Context, MediaAsset) (MediaAsset, error)
+	GetEmailSetting(context.Context) (EmailSetting, error)
+	CreateEmailNotification(context.Context, EmailNotification) (EmailNotification, error)
+	UpdateEmailNotificationStatus(context.Context, int64, string, string) error
 }

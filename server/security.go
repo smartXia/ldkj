@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"html"
 	"net/http"
@@ -15,7 +16,11 @@ import (
 )
 
 var scriptTagPattern = regexp.MustCompile(`(?is)<\s*script[^>]*>.*?<\s*/\s*script\s*>`)
+var dangerousTagPattern = regexp.MustCompile(`(?is)<\s*(script|style|iframe|object|embed|link|meta)[^>]*>.*?<\s*/\s*(script|style|iframe|object|embed|link|meta)\s*>`)
+var standaloneDangerousTagPattern = regexp.MustCompile(`(?is)<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?\s*>`)
 var tagPattern = regexp.MustCompile(`(?s)<[^>]*>`)
+var htmlTagPattern = regexp.MustCompile(`(?is)<\s*(/?)\s*([a-z0-9]+)([^>]*)>`)
+var htmlAttrPattern = regexp.MustCompile(`(?is)([a-z_:][a-z0-9_:.-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>` + "`" + `]+)`)
 
 func sanitizeText(v string) string {
 	v = strings.TrimSpace(v)
@@ -27,7 +32,9 @@ func sanitizeText(v string) string {
 func sanitizeHTML(v string) string {
 	v = strings.TrimSpace(v)
 	v = scriptTagPattern.ReplaceAllString(v, "")
-	return v
+	v = dangerousTagPattern.ReplaceAllString(v, "")
+	v = standaloneDangerousTagPattern.ReplaceAllString(v, "")
+	return htmlTagPattern.ReplaceAllStringFunc(v, sanitizeHTMLTag)
 }
 
 func validateStatus(status string) string {
@@ -99,4 +106,101 @@ func bearerToken(r *http.Request) string {
 
 func sameSecret(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+func hashPassword(password string) string {
+	sum := sha256.Sum256([]byte(password))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func verifyPassword(password, hash string) bool {
+	if strings.HasPrefix(hash, "sha256:") {
+		expected := hashPassword(password)
+		return sameSecret(expected, hash)
+	}
+	if strings.HasPrefix(hash, "{plain}") {
+		return sameSecret(password, strings.TrimPrefix(hash, "{plain}"))
+	}
+	return false
+}
+
+func sanitizeHTMLTag(tag string) string {
+	match := htmlTagPattern.FindStringSubmatch(tag)
+	if len(match) != 4 {
+		return ""
+	}
+	closing, name, attrs := match[1], strings.ToLower(match[2]), match[3]
+	if !allowedHTMLTag(name) {
+		return ""
+	}
+	if closing != "" {
+		return "</" + name + ">"
+	}
+	cleanAttrs := sanitizeHTMLAttrs(name, attrs)
+	if cleanAttrs == "" {
+		return "<" + name + ">"
+	}
+	return "<" + name + " " + cleanAttrs + ">"
+}
+
+func allowedHTMLTag(name string) bool {
+	switch name {
+	case "p", "br", "strong", "b", "em", "i", "u", "s", "ul", "ol", "li", "blockquote", "pre", "code",
+		"h1", "h2", "h3", "h4", "h5", "h6", "a", "img", "table", "thead", "tbody", "tr", "th", "td", "hr":
+		return true
+	default:
+		return false
+	}
+}
+
+func sanitizeHTMLAttrs(tag, attrs string) string {
+	out := []string{}
+	for _, match := range htmlAttrPattern.FindAllStringSubmatch(attrs, -1) {
+		name := strings.ToLower(match[1])
+		value := strings.Trim(match[2], `"'`)
+		if strings.HasPrefix(name, "on") || name == "style" {
+			continue
+		}
+		if !allowedHTMLAttr(tag, name, value) {
+			continue
+		}
+		out = append(out, name+`="`+html.EscapeString(value)+`"`)
+	}
+	return strings.Join(out, " ")
+}
+
+func allowedHTMLAttr(tag, name, value string) bool {
+	switch name {
+	case "title", "alt":
+		return tag == "a" || tag == "img"
+	case "href":
+		return tag == "a" && allowedURL(value, false)
+	case "target":
+		return tag == "a" && (value == "_blank" || value == "_self")
+	case "rel":
+		return tag == "a"
+	case "src":
+		return tag == "img" && allowedURL(value, true)
+	case "width", "height", "colspan", "rowspan":
+		for _, r := range value {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+		return value != ""
+	default:
+		return false
+	}
+}
+
+func allowedURL(value string, allowDataImage bool) bool {
+	v := strings.TrimSpace(strings.ToLower(value))
+	if v == "" || strings.HasPrefix(v, "javascript:") || strings.HasPrefix(v, "vbscript:") {
+		return false
+	}
+	if strings.HasPrefix(v, "/") || strings.HasPrefix(v, "#") || strings.HasPrefix(v, "http://") || strings.HasPrefix(v, "https://") ||
+		strings.HasPrefix(v, "mailto:") || strings.HasPrefix(v, "tel:") {
+		return true
+	}
+	return allowDataImage && strings.HasPrefix(v, "data:image/")
 }

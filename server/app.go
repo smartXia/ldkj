@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -206,7 +207,13 @@ func (a *App) publicForms(w http.ResponseWriter, r *http.Request) {
 	if form.Status == "" {
 		form.Status = "new"
 	}
-	respondCreated(w, must(a.store.CreateForm(r.Context(), form)))
+	created, err := a.store.CreateForm(r.Context(), form)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	a.notifyFormSubmitted(r, created)
+	writeJSON(w, http.StatusCreated, created)
 }
 
 func (a *App) adminLogin(w http.ResponseWriter, r *http.Request) {
@@ -222,11 +229,36 @@ func (a *App) adminLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
 		return
 	}
-	if !sameSecret(input.Username, a.config.AdminUser) || !sameSecret(input.Password, a.config.AdminPassword) {
-		writeError(w, AppError{Status: http.StatusUnauthorized, Code: "invalid_credentials", Message: "invalid username or password"})
+	user, err := a.store.GetAdminUser(r.Context(), input.Username)
+	if err == nil {
+		if user.Status == "disabled" || !verifyPassword(input.Password, user.PasswordHash) {
+			writeError(w, AppError{Status: http.StatusUnauthorized, Code: "invalid_credentials", Message: "invalid username or password"})
+			return
+		}
+		a.logAdminWithUser(r, user.Username, "login", "auth", user.ID)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"token":       createToken(user.Username, a.config.TokenSecret, a.config.TokenTTL()),
+			"user":        user,
+			"roles":       user.Roles,
+			"permissions": user.Permissions,
+		})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"token": createToken(input.Username, a.config.TokenSecret, a.config.TokenTTL())})
+	var appErr AppError
+	if errors.As(err, &appErr) {
+		if !sameSecret(input.Username, a.config.AdminUser) || !sameSecret(input.Password, a.config.AdminPassword) {
+			writeError(w, AppError{Status: http.StatusUnauthorized, Code: "invalid_credentials", Message: "invalid username or password"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"token":       createToken(input.Username, a.config.TokenSecret, a.config.TokenTTL()),
+			"user":        AdminUser{Username: input.Username, Status: "active", Roles: []string{"env_admin"}, Permissions: []string{"*"}},
+			"roles":       []string{"env_admin"},
+			"permissions": []string{"*"},
+		})
+		return
+	}
+	writeError(w, err)
 }
 
 func (a *App) adminDashboard(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +349,11 @@ func (a *App) adminCases(w http.ResponseWriter, r *http.Request) {
 			writeError(w, badRequest("invalid_case", "title and slug are required"))
 			return
 		}
-		respondCreated(w, must(a.store.CreateCase(r.Context(), item)))
+		created, err := a.store.CreateCase(r.Context(), item)
+		if err == nil {
+			a.logAdmin(r, "create", "cases", created.ID)
+		}
+		respondCreated(w, must(created, err))
 	default:
 		methodNotAllowed(w)
 	}
@@ -338,9 +374,17 @@ func (a *App) adminCaseDetail(w http.ResponseWriter, r *http.Request) {
 			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
 			return
 		}
-		respond(w, must(a.store.UpdateCase(r.Context(), id, sanitizeCase(item))))
+		updated, err := a.store.UpdateCase(r.Context(), id, sanitizeCase(item))
+		if err == nil {
+			a.logAdmin(r, "update", "cases", id)
+		}
+		respond(w, must(updated, err))
 	case http.MethodDelete:
-		respond(w, result(map[string]bool{"deleted": true}, a.store.DeleteCase(r.Context(), id)))
+		err := a.store.DeleteCase(r.Context(), id)
+		if err == nil {
+			a.logAdmin(r, "delete", "cases", id)
+		}
+		respond(w, result(map[string]bool{"deleted": true}, err))
 	default:
 		methodNotAllowed(w)
 	}
@@ -366,7 +410,11 @@ func (a *App) adminNews(w http.ResponseWriter, r *http.Request) {
 			writeError(w, badRequest("invalid_news", "title and slug are required"))
 			return
 		}
-		respondCreated(w, must(a.store.CreateNews(r.Context(), item)))
+		created, err := a.store.CreateNews(r.Context(), item)
+		if err == nil {
+			a.logAdmin(r, "create", "news", created.ID)
+		}
+		respondCreated(w, must(created, err))
 	default:
 		methodNotAllowed(w)
 	}
@@ -387,9 +435,17 @@ func (a *App) adminNewsItem(w http.ResponseWriter, r *http.Request) {
 			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
 			return
 		}
-		respond(w, must(a.store.UpdateNews(r.Context(), id, sanitizeNews(item))))
+		updated, err := a.store.UpdateNews(r.Context(), id, sanitizeNews(item))
+		if err == nil {
+			a.logAdmin(r, "update", "news", id)
+		}
+		respond(w, must(updated, err))
 	case http.MethodDelete:
-		respond(w, result(map[string]bool{"deleted": true}, a.store.DeleteNews(r.Context(), id)))
+		err := a.store.DeleteNews(r.Context(), id)
+		if err == nil {
+			a.logAdmin(r, "delete", "news", id)
+		}
+		respond(w, result(map[string]bool{"deleted": true}, err))
 	default:
 		methodNotAllowed(w)
 	}
@@ -508,19 +564,19 @@ func (a *App) adminFAQItem(w http.ResponseWriter, r *http.Request) {
 func (a *App) adminBanners(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		banner, err := a.store.GetBanner(r.Context())
+		opts, err := listOptions(r, false)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, ListResult[Banner]{Items: []Banner{banner}, Total: 1, Page: 1, PageSize: 10})
+		respond(w, must(a.store.ListBanners(r.Context(), opts)))
 	case http.MethodPost:
 		var banner Banner
 		if err := readJSON(r, &banner); err != nil {
 			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
 			return
 		}
-		saved, err := a.store.SaveBanner(r.Context(), sanitizeBanner(banner))
+		saved, err := a.store.CreateBanner(r.Context(), sanitizeBanner(banner))
 		a.logAdmin(r, "create", "banners", saved.ID)
 		respondCreated(w, must(saved, err))
 	default:
@@ -536,7 +592,7 @@ func (a *App) adminBannerItem(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
-		respond(w, must(a.store.GetBanner(r.Context())))
+		respond(w, must(a.store.GetBannerByID(r.Context(), id)))
 	case http.MethodPut:
 		var banner Banner
 		if err := readJSON(r, &banner); err != nil {
@@ -544,12 +600,13 @@ func (a *App) adminBannerItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		banner.ID = id
-		saved, err := a.store.SaveBanner(r.Context(), sanitizeBanner(banner))
+		saved, err := a.store.UpdateBanner(r.Context(), id, sanitizeBanner(banner))
 		a.logAdmin(r, "update", "banners", id)
 		respond(w, must(saved, err))
 	case http.MethodDelete:
+		err := a.store.DeleteBanner(r.Context(), id)
 		a.logAdmin(r, "delete", "banners", id)
-		respond(w, result(map[string]bool{"deleted": true}, nil))
+		respond(w, result(map[string]bool{"deleted": true}, err))
 	default:
 		methodNotAllowed(w)
 	}
@@ -908,7 +965,22 @@ func (a *App) adminUpload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, internal(err))
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"url": "/oss/" + day + "/" + name})
+	url := "/oss/" + day + "/" + name
+	asset, err := a.store.CreateMediaAsset(r.Context(), MediaAsset{
+		OriginalName: sanitizeText(header.Filename),
+		FileName:     name,
+		FilePath:     dstPath,
+		FileURL:      url,
+		MimeType:     firstNonEmpty(header.Header.Get("Content-Type"), mime.TypeByExtension(ext), http.DetectContentType(data)),
+		FileSize:     int64(len(data)),
+		BizType:      sanitizeText(r.FormValue("type")),
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	a.logAdmin(r, "upload", "media_assets", asset.ID)
+	writeJSON(w, http.StatusCreated, map[string]any{"url": url, "asset": asset})
 }
 
 func (a *App) auth(next http.HandlerFunc) http.HandlerFunc {
@@ -1094,10 +1166,24 @@ func sanitizeNews(item News) News {
 	item.PublishedAt = sanitizeText(item.PublishedAt)
 	item.PublishedAtUI = sanitizeText(item.PublishedAtUI)
 	item.Date = sanitizeText(item.Date)
+	item.PublishedAt = normalizeDateTimeInput(firstNonEmpty(item.PublishedAt, item.PublishedAtUI, item.Date))
 	if item.PublishedAt == "" {
 		item.PublishedAt = time.Now().Format("2006-01-02 15:04:05")
 	}
+	item.PublishedAtUI = item.PublishedAt
+	item.Date = item.PublishedAt
 	return normalizeNews(item)
+}
+
+func normalizeDateTimeInput(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) >= len("2006-01-02T15:04") && strings.Contains(value, "T") {
+		value = strings.Replace(value, "T", " ", 1)
+		if len(value) == len("2006-01-02 15:04") {
+			value += ":00"
+		}
+	}
+	return value
 }
 
 func sanitizeForm(form LeadForm) LeadForm {
@@ -1164,14 +1250,51 @@ func sanitizeFAQ(item PartnerFAQ) PartnerFAQ {
 }
 
 func (a *App) logAdmin(r *http.Request, action, module string, targetID int64) {
+	a.logAdminWithUser(r, tokenSubject(bearerToken(r), a.config.TokenSecret), action, module, targetID)
+}
+
+func (a *App) logAdminWithUser(r *http.Request, username, action, module string, targetID int64) {
 	_ = a.store.LogOperation(r.Context(), OperationLog{
-		Username:  tokenSubject(bearerToken(r), a.config.TokenSecret),
+		Username:  username,
 		Action:    action,
 		Module:    module,
 		Target:    module,
 		TargetID:  targetID,
 		CreatedAt: nowString(),
 	})
+}
+
+func (a *App) notifyFormSubmitted(r *http.Request, form LeadForm) {
+	setting, err := a.store.GetEmailSetting(r.Context())
+	if err != nil || !setting.IsEnabled {
+		return
+	}
+	recipients := splitCSV(setting.Recipients)
+	if len(recipients) == 0 {
+		return
+	}
+	subject := "New lead form submitted"
+	content := fmt.Sprintf("Name: %s\nPhone: %s\nCompany: %s\nRequirement: %s\n", form.Name, form.Phone, form.Company, form.Requirement)
+	for _, recipient := range recipients {
+		notification, err := a.store.CreateEmailNotification(r.Context(), EmailNotification{
+			LeadFormID: form.ID,
+			Recipient:  recipient,
+			Subject:    subject,
+			Content:    content,
+			Status:     "pending",
+		})
+		if err != nil {
+			continue
+		}
+		if setting.SMTPHost == "" || setting.SenderEmail == "" {
+			continue
+		}
+		if err := sendEmail(setting, recipient, subject, content); err != nil {
+			_ = a.store.UpdateEmailNotificationStatus(r.Context(), notification.ID, "failed", err.Error())
+			continue
+		}
+		_ = a.store.UpdateEmailNotificationStatus(r.Context(), notification.ID, "sent", "")
+	}
 }
 
 func readUpload(r io.Reader, maxBytes int64) ([]byte, error) {

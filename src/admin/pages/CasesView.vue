@@ -11,6 +11,7 @@ const columns = [
 
 const fields = [
   { key: 'title', label: '标题', placeholder: '案例名称' },
+  { key: 'slug', label: '访问标识', placeholder: '如 mageline / miniso，用于前台详情页 URL' },
   { key: 'industry', label: '行业标签', placeholder: '如 美妆 / 食品 / 教育' },
   { key: 'platform', label: '平台', placeholder: '如 抖音 / 小红书 / 视频号' },
   { key: 'playbook', label: '打法/赛道', placeholder: '筛选维度' },

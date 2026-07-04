@@ -23,3 +23,12 @@ func TestServiceSelectColumnsCoalesceNullableTextFields(t *testing.T) {
 		}
 	}
 }
+
+func TestBannerOrderClauseFallsBackForLegacySchema(t *testing.T) {
+	if got := bannerOrderClause(false); got != "ORDER BY id ASC" {
+		t.Fatalf("expected legacy banner order fallback, got %q", got)
+	}
+	if got := bannerOrderClause(true); got != "ORDER BY sort_order ASC, id ASC" {
+		t.Fatalf("expected sort_order banner order, got %q", got)
+	}
+}

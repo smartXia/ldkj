@@ -56,10 +56,15 @@ ON DUPLICATE KEY UPDATE site_title = VALUES(site_title), logo_url = VALUES(logo_
 
 func (s *mysqlStore) GetBanner(ctx context.Context) (Banner, error) {
 	var b Banner
-	err := s.db.QueryRowContext(ctx, `SELECT id, title, subtitle, image_url, link_url, button_text, is_published, updated_at FROM banners WHERE id = 1`).Scan(
+	order := bannerOrderClause(s.columnExists(ctx, "banners", "sort_order"))
+	err := s.db.QueryRowContext(ctx, `SELECT id, title, subtitle, image_url, link_url, button_text, is_published, updated_at FROM banners WHERE is_published = TRUE `+order+` LIMIT 1`).Scan(
 		&b.ID, &b.Title, &b.Subtitle, &b.ImageURL, &b.LinkURL, &b.ButtonText, &b.IsPublished, &b.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Banner{}, notFound("banner not found")
+		err = s.db.QueryRowContext(ctx, `SELECT id, title, subtitle, image_url, link_url, button_text, is_published, updated_at FROM banners `+order+` LIMIT 1`).Scan(
+			&b.ID, &b.Title, &b.Subtitle, &b.ImageURL, &b.LinkURL, &b.ButtonText, &b.IsPublished, &b.UpdatedAt)
+		if errors.Is(err, sql.ErrNoRows) {
+			return Banner{}, notFound("banner not found")
+		}
 	}
 	return normalizeBanner(b), err
 }
@@ -73,6 +78,89 @@ ON DUPLICATE KEY UPDATE title = VALUES(title), subtitle = VALUES(subtitle), imag
 		return Banner{}, err
 	}
 	return s.GetBanner(ctx)
+}
+
+func (s *mysqlStore) ListBanners(ctx context.Context, opts ListOptions) (ListResult[Banner], error) {
+	hasPosition := s.columnExists(ctx, "banners", "position_key")
+	hasSort := s.columnExists(ctx, "banners", "sort_order")
+	where := ""
+	args := []any{}
+	if opts.Status != "" {
+		where = "WHERE is_published = ?"
+		args = append(args, opts.Status != "disabled" && opts.Status != "draft")
+	}
+	total, err := s.count(ctx, "banners", where, args)
+	if err != nil {
+		return ListResult[Banner]{}, err
+	}
+	args = append(args, opts.PageSize, offset(opts))
+	rows, err := s.db.QueryContext(ctx, `SELECT `+bannerSelectColumns(hasPosition, hasSort)+` FROM banners `+where+` `+bannerOrderClause(hasSort)+` LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return ListResult[Banner]{}, err
+	}
+	defer rows.Close()
+	items := []Banner{}
+	for rows.Next() {
+		var item Banner
+		if err := rows.Scan(&item.ID, &item.Title, &item.Subtitle, &item.ImageURL, &item.LinkURL, &item.ButtonText, &item.Page, &item.Sort, &item.IsPublished, &item.UpdatedAt); err != nil {
+			return ListResult[Banner]{}, err
+		}
+		items = append(items, normalizeBanner(item))
+	}
+	return ListResult[Banner]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
+}
+
+func (s *mysqlStore) GetBannerByID(ctx context.Context, id int64) (Banner, error) {
+	hasPosition := s.columnExists(ctx, "banners", "position_key")
+	hasSort := s.columnExists(ctx, "banners", "sort_order")
+	var item Banner
+	err := s.db.QueryRowContext(ctx, `SELECT `+bannerSelectColumns(hasPosition, hasSort)+` FROM banners WHERE id = ?`, id).Scan(
+		&item.ID, &item.Title, &item.Subtitle, &item.ImageURL, &item.LinkURL, &item.ButtonText, &item.Page, &item.Sort, &item.IsPublished, &item.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Banner{}, notFound("banner not found")
+	}
+	return normalizeBanner(item), err
+}
+
+func (s *mysqlStore) CreateBanner(ctx context.Context, item Banner) (Banner, error) {
+	item = normalizeBanner(item)
+	id, err := s.nextID(ctx, "banners")
+	if err != nil {
+		return Banner{}, err
+	}
+	if s.columnExists(ctx, "banners", "position_key") && s.columnExists(ctx, "banners", "sort_order") {
+		_, err = s.db.ExecContext(ctx, `INSERT INTO banners (id, title, subtitle, image_url, link_url, button_text, position_key, sort_order, is_published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, item.Title, item.Subtitle, item.ImageURL, item.LinkURL, item.ButtonText, item.Page, item.Sort, item.IsPublished)
+	} else {
+		_, err = s.db.ExecContext(ctx, `INSERT INTO banners (id, title, subtitle, image_url, link_url, button_text, is_published) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			id, item.Title, item.Subtitle, item.ImageURL, item.LinkURL, item.ButtonText, item.IsPublished)
+	}
+	if err != nil {
+		return Banner{}, err
+	}
+	return s.GetBannerByID(ctx, id)
+}
+
+func (s *mysqlStore) UpdateBanner(ctx context.Context, id int64, item Banner) (Banner, error) {
+	item = normalizeBanner(item)
+	var res sql.Result
+	var err error
+	if s.columnExists(ctx, "banners", "position_key") && s.columnExists(ctx, "banners", "sort_order") {
+		res, err = s.db.ExecContext(ctx, `UPDATE banners SET title=?, subtitle=?, image_url=?, link_url=?, button_text=?, position_key=?, sort_order=?, is_published=? WHERE id=?`,
+			item.Title, item.Subtitle, item.ImageURL, item.LinkURL, item.ButtonText, item.Page, item.Sort, item.IsPublished, id)
+	} else {
+		res, err = s.db.ExecContext(ctx, `UPDATE banners SET title=?, subtitle=?, image_url=?, link_url=?, button_text=?, is_published=? WHERE id=?`,
+			item.Title, item.Subtitle, item.ImageURL, item.LinkURL, item.ButtonText, item.IsPublished, id)
+	}
+	if err := checkRows(res, err, "banner not found"); err != nil {
+		return Banner{}, err
+	}
+	return s.GetBannerByID(ctx, id)
+}
+
+func (s *mysqlStore) DeleteBanner(ctx context.Context, id int64) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM banners WHERE id = ?`, id)
+	return checkRows(res, err, "banner not found")
 }
 
 func (s *mysqlStore) GetSEO(ctx context.Context, page string) (SEOSetting, error) {
@@ -113,6 +201,46 @@ func (s *mysqlStore) ListSEO(ctx context.Context) ([]SEOSetting, error) {
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (s *mysqlStore) GetAdminUser(ctx context.Context, username string) (AdminUser, error) {
+	var user AdminUser
+	err := s.db.QueryRowContext(ctx, `SELECT id, username, password_hash, real_name, status FROM admin_users WHERE username = ? AND status = 'active'`, username).Scan(
+		&user.ID, &user.Username, &user.PasswordHash, &user.RealName, &user.Status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return AdminUser{}, notFound("admin user not found")
+	}
+	if err != nil {
+		return AdminUser{}, err
+	}
+	roleRows, err := s.db.QueryContext(ctx, `SELECT r.code FROM roles r JOIN admin_user_roles aur ON aur.role_id = r.id WHERE aur.user_id = ? ORDER BY r.id`, user.ID)
+	if err != nil {
+		return AdminUser{}, err
+	}
+	defer roleRows.Close()
+	for roleRows.Next() {
+		var role string
+		if err := roleRows.Scan(&role); err != nil {
+			return AdminUser{}, err
+		}
+		user.Roles = append(user.Roles, role)
+	}
+	if err := roleRows.Err(); err != nil {
+		return AdminUser{}, err
+	}
+	permRows, err := s.db.QueryContext(ctx, `SELECT DISTINCT p.code FROM permissions p JOIN role_permissions rp ON rp.permission_id = p.id JOIN admin_user_roles aur ON aur.role_id = rp.role_id WHERE aur.user_id = ? ORDER BY p.code`, user.ID)
+	if err != nil {
+		return AdminUser{}, err
+	}
+	defer permRows.Close()
+	for permRows.Next() {
+		var permission string
+		if err := permRows.Scan(&permission); err != nil {
+			return AdminUser{}, err
+		}
+		user.Permissions = append(user.Permissions, permission)
+	}
+	return user, permRows.Err()
 }
 
 func (s *mysqlStore) ListServices(ctx context.Context, opts ListOptions) (ListResult[Service], error) {
@@ -187,7 +315,7 @@ func (s *mysqlStore) ListCases(ctx context.Context, opts ListOptions) (ListResul
 		return ListResult[Case]{}, err
 	}
 	args = append(args, opts.PageSize, offset(opts))
-	rows, err := s.db.QueryContext(ctx, `SELECT id, title, slug, industry, platform, strategy, cover_url, summary, content, core_metrics, status, created_at, updated_at FROM cases `+where+` ORDER BY id DESC LIMIT ? OFFSET ?`, args...)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, title, slug, industry, platform, strategy, cover_url, summary, content, core_metrics, status, created_at, updated_at FROM cases `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
 	if err != nil {
 		return ListResult[Case]{}, err
 	}
@@ -531,10 +659,93 @@ func (s *mysqlStore) LogOperation(ctx context.Context, log OperationLog) error {
 	return err
 }
 
+func (s *mysqlStore) CreateMediaAsset(ctx context.Context, asset MediaAsset) (MediaAsset, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO media_assets (original_name, file_name, file_path, file_url, mime_type, file_size, biz_type, ref_table, ref_id, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		asset.OriginalName, asset.FileName, asset.FilePath, asset.FileURL, asset.MimeType, asset.FileSize, asset.BizType, asset.RefTable, nullableID(asset.RefID), nullableID(asset.UploaderID))
+	if err != nil {
+		return MediaAsset{}, err
+	}
+	id, _ := res.LastInsertId()
+	asset.ID = id
+	return asset, nil
+}
+
+func (s *mysqlStore) GetEmailSetting(ctx context.Context) (EmailSetting, error) {
+	var setting EmailSetting
+	err := s.db.QueryRowContext(ctx, `SELECT id, smtp_host, smtp_port, smtp_user, smtp_password, sender_email, sender_name, recipients, is_ssl, is_enabled FROM email_settings ORDER BY id ASC LIMIT 1`).Scan(
+		&setting.ID, &setting.SMTPHost, &setting.SMTPPort, &setting.SMTPUser, &setting.SMTPPassword, &setting.SenderEmail, &setting.SenderName, &setting.Recipients, &setting.IsSSL, &setting.IsEnabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return EmailSetting{}, notFound("email setting not found")
+	}
+	return setting, err
+}
+
+func (s *mysqlStore) CreateEmailNotification(ctx context.Context, notification EmailNotification) (EmailNotification, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO email_notifications (lead_form_id, recipient, subject, content, status, error_message) VALUES (?, ?, ?, ?, ?, ?)`,
+		nullableID(notification.LeadFormID), notification.Recipient, notification.Subject, notification.Content, notification.Status, nullableString(notification.ErrorMessage))
+	if err != nil {
+		return EmailNotification{}, err
+	}
+	id, _ := res.LastInsertId()
+	notification.ID = id
+	return notification, nil
+}
+
+func (s *mysqlStore) UpdateEmailNotificationStatus(ctx context.Context, id int64, status, message string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE email_notifications SET status = ?, error_message = ?, sent_at = CASE WHEN ? = 'sent' THEN NOW() ELSE sent_at END WHERE id = ?`,
+		status, nullableString(message), status, id)
+	return err
+}
+
 func (s *mysqlStore) count(ctx context.Context, table, where string, args []any) (int64, error) {
 	var total int64
 	err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s %s", table, where), args...).Scan(&total)
 	return total, err
+}
+
+func (s *mysqlStore) columnExists(ctx context.Context, table, column string) bool {
+	var total int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column).Scan(&total)
+	return err == nil && total > 0
+}
+
+func bannerSelectColumns(hasPosition, hasSort bool) string {
+	position := "''"
+	if hasPosition {
+		position = "position_key"
+	}
+	sortColumn := "0"
+	if hasSort {
+		sortColumn = "sort_order"
+	}
+	return "id, title, subtitle, image_url, link_url, button_text, " + position + ", " + sortColumn + ", is_published, updated_at"
+}
+
+func bannerOrderClause(hasSort bool) string {
+	if hasSort {
+		return "ORDER BY sort_order ASC, id ASC"
+	}
+	return "ORDER BY id ASC"
+}
+
+func (s *mysqlStore) nextID(ctx context.Context, table string) (int64, error) {
+	var id int64
+	err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COALESCE(MAX(id), 0) + 1 FROM %s", table)).Scan(&id)
+	return id, err
+}
+
+func nullableID(id int64) any {
+	if id == 0 {
+		return nil
+	}
+	return id
+}
+
+func nullableString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 func caseWhere(opts ListOptions) (string, []any) {
