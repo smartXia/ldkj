@@ -108,7 +108,7 @@ func (s *mysqlStore) ListSEO(ctx context.Context) ([]SEOSetting, error) {
 			return nil, err
 		}
 		item.Page = item.PageKey
-		items = append(items, item)
+		items = append(items, normalizeCase(item))
 	}
 	return items, rows.Err()
 }
@@ -214,7 +214,7 @@ func (s *mysqlStore) GetCase(ctx context.Context, key string, includeDraft bool)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Case{}, notFound("case not found")
 	}
-	return item, err
+	return normalizeCase(item), err
 }
 
 func (s *mysqlStore) CreateCase(ctx context.Context, item Case) (Case, error) {
@@ -259,7 +259,7 @@ func (s *mysqlStore) ListNews(ctx context.Context, opts ListOptions) (ListResult
 		if err := rows.Scan(&item.ID, &item.Title, &item.Slug, &item.Category, &item.CoverURL, &item.Summary, &item.Content, &item.Status, &item.PublishedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return ListResult[News]{}, err
 		}
-		items = append(items, item)
+		items = append(items, normalizeNews(item))
 	}
 	return ListResult[News]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
 }
@@ -277,7 +277,7 @@ func (s *mysqlStore) GetNews(ctx context.Context, key string, includeDraft bool)
 	if errors.Is(err, sql.ErrNoRows) {
 		return News{}, notFound("news not found")
 	}
-	return item, err
+	return normalizeNews(item), err
 }
 
 func (s *mysqlStore) CreateNews(ctx context.Context, item News) (News, error) {
@@ -337,7 +337,7 @@ func (s *mysqlStore) ListForms(ctx context.Context, opts ListOptions) (ListResul
 		if err := rows.Scan(&item.ID, &item.Name, &item.Phone, &item.Company, &item.Position, &item.Email, &item.Requirement, &item.Interest, &item.Source, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return ListResult[LeadForm]{}, err
 		}
-		items = append(items, item)
+		items = append(items, normalizeForm(item))
 	}
 	return ListResult[LeadForm]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
 }
@@ -357,7 +357,7 @@ func (s *mysqlStore) getForm(ctx context.Context, id int64) (LeadForm, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return LeadForm{}, notFound("form not found")
 	}
-	return item, err
+	return normalizeForm(item), err
 }
 
 func (s *mysqlStore) count(ctx context.Context, table, where string, args []any) (int64, error) {
