@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, shallowRef } from 'vue'
 import CaseHero from '../components/case/CaseHero.vue'
 import CaseFilterBar from '../components/case/CaseFilterBar.vue'
 import CaseGrid from '../components/case/CaseGrid.vue'
-import CaseDetailModal from '../components/case/CaseDetailModal.vue'
 import { allOption } from '../data/caseContent'
 import { getCases } from '../services/publicApi'
 
@@ -12,7 +11,6 @@ const caseHero = shallowRef({ title: '', image: '' })
 const caseFilterGroups = shallowRef([])
 const caseCards = shallowRef([])
 const selectedFilters = reactive({})
-const activeCase = shallowRef(null)
 const currentPage = shallowRef(1)
 
 const filteredCases = computed(() =>
@@ -39,14 +37,6 @@ function updatePage(page) {
   currentPage.value = page
 }
 
-function openCaseDetail(item) {
-  activeCase.value = item
-}
-
-function closeCaseDetail() {
-  activeCase.value = null
-}
-
 onMounted(async () => {
   const data = await getCases()
   caseHero.value = data.hero
@@ -66,7 +56,7 @@ onMounted(async () => {
       :selected="selectedFilters"
       @change="updateFilter"
     />
-    <CaseGrid :cases="visibleCases" @select="openCaseDetail" />
+    <CaseGrid :cases="visibleCases" />
     <nav v-if="pageCount > 1" class="pager" aria-label="案例分页">
       <button
         v-for="page in pageCount"
@@ -79,7 +69,6 @@ onMounted(async () => {
       </button>
     </nav>
   </section>
-  <CaseDetailModal v-if="activeCase" :case-item="activeCase" @close="closeCaseDetail" />
 </template>
 
 <style scoped>

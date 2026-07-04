@@ -8,7 +8,6 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['select'])
 const gridRef = useTemplateRef('grid')
 let observer
 
@@ -60,7 +59,7 @@ onBeforeUnmount(() => {
         class="case-card"
         :style="{ transitionDelay: `${Math.min((index % 3) * 90, 180)}ms` }"
       >
-        <button class="case-link" type="button" :aria-label="`查看案例详情：${item.title}`" @click="emit('select', item)">
+        <RouterLink class="case-link" :to="`/case/${item.slug || item.id}`" :aria-label="`查看案例详情：${item.title}`">
           <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" />
           <div class="case-info">
             <h2>{{ item.title }}</h2>
@@ -70,7 +69,7 @@ onBeforeUnmount(() => {
               <span>{{ item.platform }}</span>
             </div>
           </div>
-        </button>
+        </RouterLink>
       </article>
     </div>
 

@@ -32,7 +32,7 @@ function buildUrl(path, params) {
   return url.toString()
 }
 
-async function parseResponse(response) {
+async function parseResponse(response, expectJson = true) {
   const contentType = response.headers.get('content-type') || ''
 
   if (contentType.includes('application/json')) {
@@ -41,6 +41,10 @@ async function parseResponse(response) {
       throw new AdminApiError(payload.message || '请求失败', response.status, payload)
     }
     return payload
+  }
+
+  if (expectJson) {
+    throw new AdminApiError('服务返回格式异常，请确认后端 API 已启动', response.status)
   }
 
   if (!response.ok) {
@@ -66,7 +70,7 @@ async function request(path, options = {}) {
   })
 
   if (response.status === 401) setToken('')
-  return parseResponse(response)
+  return parseResponse(response, options.expectJson !== false)
 }
 
 function normalizeList(payload) {
@@ -134,6 +138,7 @@ async function upload(file, type = 'common') {
 async function exportFile(resource, params = {}, format = 'csv') {
   const response = await request(`/${resource}/export`, {
     params: { ...params, format },
+    expectJson: false,
   })
   const blob = await response.blob()
   const downloadUrl = window.URL.createObjectURL(blob)

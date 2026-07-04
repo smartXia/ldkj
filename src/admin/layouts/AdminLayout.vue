@@ -46,11 +46,14 @@ function handleLogout() {
 
     <section class="admin-workspace">
       <header class="admin-topbar">
-        <div>
-          <p>灵动信息后台</p>
+        <div class="admin-topbar-title">
+          <p class="admin-topbar-meta">灵动信息后台管理</p>
           <h1>{{ pageTitle }}</h1>
         </div>
-        <button class="admin-button ghost" type="button" @click="handleLogout">退出</button>
+        <div class="admin-topbar-actions">
+          <RouterLink class="admin-button secondary" to="/">返回前台</RouterLink>
+          <button class="admin-button ghost" type="button" @click="handleLogout">退出登录</button>
+        </div>
       </header>
       <main class="admin-main">
         <RouterView />

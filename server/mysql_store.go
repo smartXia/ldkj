@@ -15,6 +15,8 @@ type mysqlStore struct {
 	db *sql.DB
 }
 
+const serviceSelectColumns = `id, title, slug, COALESCE(subtitle, ''), COALESCE(summary, ''), COALESCE(cover_url, ''), COALESCE(icon_url, ''), COALESCE(content, ''), COALESCE(highlights, ''), COALESCE(process_steps, ''), sort_order, status, created_at, updated_at`
+
 func NewMySQLStore(db *sql.DB) Store {
 	return &mysqlStore{db: db}
 }
@@ -120,7 +122,7 @@ func (s *mysqlStore) ListServices(ctx context.Context, opts ListOptions) (ListRe
 		return ListResult[Service]{}, err
 	}
 	args = append(args, opts.PageSize, offset(opts))
-	rows, err := s.db.QueryContext(ctx, `SELECT id, title, slug, subtitle, summary, cover_url, icon_url, content, highlights, process_steps, sort_order, status, created_at, updated_at FROM services `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+serviceSelectColumns+` FROM services `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
 	if err != nil {
 		return ListResult[Service]{}, err
 	}
@@ -144,7 +146,7 @@ func (s *mysqlStore) GetService(ctx context.Context, key string, includeDraft bo
 		args = append(args, "published")
 	}
 	var item Service
-	err := s.db.QueryRowContext(ctx, `SELECT id, title, slug, subtitle, summary, cover_url, icon_url, content, highlights, process_steps, sort_order, status, created_at, updated_at FROM services WHERE `+where+` LIMIT 1`, args...).Scan(
+	err := s.db.QueryRowContext(ctx, `SELECT `+serviceSelectColumns+` FROM services WHERE `+where+` LIMIT 1`, args...).Scan(
 		&item.ID, &item.Title, &item.Slug, &item.Subtitle, &item.Summary, &item.CoverURL, &item.IconURL, &item.Content, &item.HighlightText, &item.ProcessText, &item.SortOrder, &item.Status, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Service{}, notFound("service not found")

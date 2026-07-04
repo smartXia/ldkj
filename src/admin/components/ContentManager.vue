@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { create, exportFile, list, remove, update } from '../../services/adminApi'
+import RichTextEditor from './RichTextEditor.vue'
 import UploadField from './UploadField.vue'
 
 const props = defineProps({
@@ -161,10 +162,16 @@ onMounted(fetchRows)
     </div>
 
     <form v-if="drawerOpen" class="admin-drawer admin-form" @submit.prevent="handleSave">
-      <div v-for="field in fields" :key="field.key" class="admin-field" :class="{ wide: field.wide || field.type === 'textarea' || field.type === 'upload' }">
+      <div
+        v-for="field in fields"
+        :key="field.key"
+        class="admin-field"
+        :class="{ wide: field.wide || field.type === 'textarea' || field.type === 'richtext' || field.type === 'upload' }"
+      >
         <label :for="field.key">{{ field.label }}</label>
+        <RichTextEditor v-if="field.type === 'richtext'" :id="field.key" v-model="form[field.key]" />
         <textarea
-          v-if="field.type === 'textarea'"
+          v-else-if="field.type === 'textarea'"
           :id="field.key"
           v-model="form[field.key]"
           class="admin-textarea"

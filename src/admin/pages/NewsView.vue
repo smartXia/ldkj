@@ -34,7 +34,7 @@ const fields = [
     ],
   },
   { key: 'summary', label: '摘要', type: 'textarea', placeholder: '列表摘要' },
-  { key: 'content', label: '正文', type: 'textarea', placeholder: '资讯正文，可先填写纯文本' },
+  { key: 'content', label: '正文', type: 'richtext', placeholder: '资讯正文' },
 ]
 </script>
 
