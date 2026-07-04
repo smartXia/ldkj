@@ -333,6 +333,15 @@ func TestAdminBannersSupportMultipleItems(t *testing.T) {
 	}
 
 	resp = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPut, "/api/admin/banners/2", strings.NewReader(`{"title":"Hero B Updated","image_url":"/oss/old.png","image":"/oss/new-upload.png","status":"enabled","sort":3}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || !strings.Contains(resp.Body.String(), `"image_url":"/oss/new-upload.png"`) {
+		t.Fatalf("expected banner image alias to update image_url, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	resp = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodDelete, "/api/admin/banners/1", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	app.ServeHTTP(resp, req)

@@ -46,7 +46,7 @@ function fieldAliases(key) {
     updatedAt: ['updated_at'],
     createdAt: ['created_at'],
     cover: ['cover_url', 'image'],
-    image: ['cover_url', 'cover'],
+    image: ['image_url', 'cover_url', 'cover'],
     icon: ['icon_url'],
     playbook: ['strategy', 'method'],
     metrics: ['core_metrics'],
@@ -74,7 +74,7 @@ function toDateTimeLocalValue(value) {
 function applyCanonicalAliases(payload) {
   const aliasTargets = {
     cover: ['cover_url', 'image'],
-    image: ['cover_url', 'cover'],
+    image: ['image_url', 'cover_url', 'cover'],
     icon: ['icon_url'],
     playbook: ['strategy', 'method'],
     metrics: ['core_metrics'],

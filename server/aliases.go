@@ -6,7 +6,9 @@ import (
 )
 
 func normalizeBanner(b Banner) Banner {
-	if b.ImageURL == "" {
+	if b.Image != "" {
+		b.ImageURL = b.Image
+	} else if b.ImageURL == "" {
 		b.ImageURL = firstNonEmpty(b.Image, b.ImageURL)
 	}
 	if b.Image == "" {
