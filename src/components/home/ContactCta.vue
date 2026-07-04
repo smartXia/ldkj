@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { getConsultContent, submitPublicForm } from '../../services/publicApi'
 
-const defaultDemandOptions = ['????', '????', '????', '????', '????', '????', '??']
+const defaultDemandOptions = ['整合营销', '新品推广', '电商大促', '社交种草', '账号运营', '口碑管理', '其他']
 const form = reactive({
   name: '',
   phone: '',
@@ -15,7 +15,7 @@ const errorMessage = shallowRef('')
 const consultContent = shallowRef(null)
 
 const demandOptions = computed(() => consultContent.value?.demandOptions?.length ? consultContent.value.demandOptions : defaultDemandOptions)
-const demandLabel = computed(() => form.demand || consultContent.value?.demandPlaceholder || '???????')
+const demandLabel = computed(() => form.demand || consultContent.value?.demandPlaceholder || '请选择营销诉求')
 const isSubmitting = computed(() => status.value === 'submitting')
 
 function selectDemand(option) {
@@ -61,7 +61,7 @@ async function submitForm() {
     resetForm()
   } catch (error) {
     status.value = 'error'
-    errorMessage.value = '提交失败，请稍后再试或直接联系我们。'
+    errorMessage.value = consultContent.value?.errorText || '提交失败，请稍后再试或直接联系我们。'
   }
 }
 
@@ -72,8 +72,8 @@ onMounted(async () => {
 
 <template>
   <section id="consult" class="consultation-container">
-    <h2 class="consultation-title">{{ consultContent?.title || '??????' }}</h2>
-    <p class="consultation-desc">{{ consultContent?.description || '??????????????????' }}</p>
+    <h2 class="consultation-title">{{ consultContent?.title || '预约营销咨询' }}</h2>
+    <p class="consultation-desc">{{ consultContent?.description || '留下您的联系方式，获取一对一营销诊断' }}</p>
 
     <div class="consultation-main">
       <div class="consultation-left">
@@ -82,15 +82,15 @@ onMounted(async () => {
       <form class="consultation-form" novalidate @submit.prevent="submitForm">
         <div class="form-row">
           <label class="field field-half">
-            <input v-model="form.name" type="text" placeholder="???? *" autocomplete="name" />
+            <input v-model="form.name" type="text" placeholder="您的姓名 *" autocomplete="name" />
           </label>
           <label class="field field-half">
-            <input v-model="form.phone" type="tel" placeholder="??????? *" autocomplete="tel" />
+            <input v-model="form.phone" type="tel" placeholder="请填写手机号码 *" autocomplete="tel" />
           </label>
         </div>
 
         <label class="field">
-          <input v-model="form.company" type="text" placeholder="??????? *" autocomplete="organization" />
+          <input v-model="form.company" type="text" placeholder="请填写公司名称 *" autocomplete="organization" />
         </label>
 
         <div class="field select-field" @mouseleave="dropdownOpen = false">
@@ -111,15 +111,14 @@ onMounted(async () => {
         </div>
 
         <button class="submit-button" type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? (consultContent?.submittingText || '???...') : (consultContent?.submitText || '????') }}
+          {{ isSubmitting ? (consultContent?.submittingText || '提交中...') : (consultContent?.submitText || '立即预约') }}
         </button>
-        <p v-if="status === 'success'" class="submit-tip success" role="status">{{ consultContent?.successText || '??????????????????' }}</p>
+        <p v-if="status === 'success'" class="submit-tip success" role="status">{{ consultContent?.successText || '预约信息已提交，我们会尽快与您联系。' }}</p>
         <p v-else-if="status === 'error'" class="submit-tip error" role="alert">{{ errorMessage }}</p>
       </form>
     </div>
   </section>
 </template>
-
 <style scoped>
 .consultation-container {
   height: 584px;

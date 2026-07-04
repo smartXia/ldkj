@@ -21,9 +21,13 @@ const cropViewport = ref(null)
 const uploading = ref(false)
 const error = ref('')
 const imageSpec = computed(() => getImageSpec(props.type))
+const isBannerUpload = computed(() => props.type === 'banner')
+const acceptTypes = computed(() => (isBannerUpload.value ? 'image/*,video/mp4' : 'image/*'))
+const isVideoValue = computed(() => /\.mp4(?:[?#].*)?$/i.test(props.modelValue))
 const specText = computed(() => {
   if (!imageSpec.value) return ''
-  return `${imageSpec.value.label}要求 ${imageSpec.value.width} x ${imageSpec.value.height}px`
+  const suffix = isBannerUpload.value ? '；也支持上传 MP4 视频作为背景' : ''
+  return `${imageSpec.value.label}要求 ${imageSpec.value.width} x ${imageSpec.value.height}px${suffix}`
 })
 
 const crop = reactive({
@@ -68,6 +72,10 @@ function readImage(file) {
     }
     image.src = url
   })
+}
+
+function isBannerVideo(file) {
+  return isBannerUpload.value && (file.type === 'video/mp4' || /\.mp4$/i.test(file.name))
 }
 
 function clampCropOffset() {
@@ -144,6 +152,11 @@ async function handleFileChange(event) {
   error.value = ''
 
   try {
+    if (isBannerVideo(file)) {
+      await uploadFile(file)
+      return
+    }
+
     if (!imageSpec.value) {
       await uploadFile(file)
       return
@@ -265,16 +278,17 @@ async function confirmCrop() {
       <input
         class="admin-input"
         :value="modelValue"
-        placeholder="上传后自动回填，或粘贴图片 URL"
+        placeholder="上传后自动回填，或粘贴资源 URL"
         @input="emit('update:modelValue', $event.target.value)"
       />
       <button class="admin-button secondary" type="button" :disabled="uploading" @click="fileInput.click()">
         {{ uploading ? '上传中' : '上传' }}
       </button>
-      <input ref="fileInput" type="file" accept="image/*" hidden @change="handleFileChange" />
+      <input ref="fileInput" type="file" :accept="acceptTypes" hidden @change="handleFileChange" />
     </div>
     <div v-if="modelValue" class="admin-upload-preview">
-      <img :src="modelValue" alt="" />
+      <video v-if="isVideoValue" :src="modelValue" muted playsinline></video>
+      <img v-else :src="modelValue" alt="" />
       <span class="admin-muted">{{ modelValue }}</span>
     </div>
     <p v-if="error" class="admin-muted">{{ error }}</p>

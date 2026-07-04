@@ -4,8 +4,8 @@ const currentLanguageCode = shallowRef('zh')
 
 export const languages = [
   { code: 'zh', label: '中文' },
-  { code: 'en', label: 'English' },
-  { code: 'ja', label: '日本語' },
+  // { code: 'en', label: 'English' },
+  // { code: 'ja', label: '日本語' },
 ]
 
 const localAbout = (name) => `/assets/wsd/about/${name}`

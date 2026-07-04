@@ -1,6 +1,10 @@
 const API_BASE = import.meta.env.VITE_PUBLIC_API_BASE || ''
 const FRONTEND_ASSET_PREFIX = '/assets/'
-
+const NEWS_CATEGORY_LABELS = {
+  news: '灵动动态',
+  insight: '营销洞察',
+  industry: '行业资讯',
+}
 function endpoint(path) {
   return `${API_BASE}${path}`
 }
@@ -11,10 +15,15 @@ function isFrontendAsset(value) {
 
 function backendImage(value) {
   const image = typeof value === 'string' ? value.trim() : ''
-  if (!image || isFrontendAsset(image)) return ''
+  if (!image) return ''
   if (/^https?:\/\//i.test(image) || image.startsWith('data:') || image.startsWith('blob:')) return image
+  if (isFrontendAsset(image)) return image
   if (image.startsWith('/')) return API_BASE ? `${API_BASE}${image}` : image
   return image
+}
+
+function firstNonEmpty(...values) {
+  return values.find((value) => typeof value === 'string' && value.trim())?.trim() || ''
 }
 
 function normalizeImageItem(item) {
@@ -66,12 +75,42 @@ function normalizeCaseListContent(content) {
 
 function normalizeArticleListContent(content) {
   const data = content || {}
+  const items = normalizeArticleList(data.items)
+  const categories = Array.isArray(data.categories) && data.categories.length
+    ? data.categories
+    : ['全部资讯', ...new Set(items.map((item) => item.category).filter(Boolean))]
+
   return {
     ...data,
     hero: normalizeImageItem(data.hero),
-    categories: data.categories || [],
-    items: normalizeImageList(data.items),
+    categories,
+    items,
   }
+}
+
+function normalizeArticleItem(item) {
+  const normalized = normalizeImageItem(item)
+  if (!normalized || typeof normalized !== 'object') return normalized
+
+  const routeId = firstNonEmpty(normalized.slug, String(normalized.id || ''))
+  const category = NEWS_CATEGORY_LABELS[normalized.category] || normalized.category
+  const desc = firstNonEmpty(normalized.desc, normalized.summary)
+  const date = firstNonEmpty(normalized.date, normalized.published_at, normalized.publishedAt)
+
+  return {
+    ...normalized,
+    category,
+    desc,
+    summary: firstNonEmpty(normalized.summary, desc),
+    date,
+    published_at: date,
+    publishedAt: date,
+    href: routeId ? `/message/${routeId}` : '/message',
+  }
+}
+
+function normalizeArticleList(items) {
+  return Array.isArray(items) ? items.map(normalizeArticleItem) : []
 }
 
 const defaultConsultContent = {
@@ -84,7 +123,6 @@ const defaultConsultContent = {
   successText: '预约信息已提交，我们会尽快与您联系。',
   errorText: '提交失败，请稍后再试或直接联系我们。',
 }
-
 function parseJSON(value) {
   if (!value) return {}
   if (typeof value === 'object') return value
@@ -226,7 +264,7 @@ export function getArticles() {
 
 export function getArticleById(id) {
   return withFallback(
-    async () => normalizeImageItem(unwrapItem(await request(`/api/public/news/${encodeURIComponent(id)}`), {})),
+    async () => normalizeArticleItem(unwrapItem(await request(`/api/public/news/${encodeURIComponent(id)}`), {})),
     {}
   )
 }

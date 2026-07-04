@@ -17,7 +17,7 @@ const fields = [
   { key: 'playbook', label: '打法/赛道', placeholder: '筛选维度' },
   { key: 'cover', label: '封面图', type: 'upload', wide: true },
   { key: 'metrics', label: '核心数据', type: 'textarea', placeholder: '每行一条数据亮点' },
-  { key: 'content', label: '详情内容', type: 'textarea', placeholder: '案例正文，可先填写纯文本' },
+  { key: 'content', label: '详情内容', type: 'richtext', placeholder: '案例正文，支持图文排版' },
   {
     key: 'status',
     label: '状态',

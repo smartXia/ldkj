@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue'
 import { getConsultContent, submitPublicForm } from '../../services/publicApi'
 
@@ -103,10 +103,10 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div class="consult-modal" role="dialog" aria-modal="true" aria-labelledby="consult-title">
-      <button class="consult-backdrop" type="button" aria-label="鍏抽棴钀ラ攢鍜ㄨ" @click="close"></button>
+      <button class="consult-backdrop" type="button" aria-label="关闭营销咨询" @click="close"></button>
 
       <section class="consult-dialog">
-        <button class="consult-close" type="button" aria-label="鍏抽棴" @click="close"></button>
+        <button class="consult-close" type="button" aria-label="关闭" @click="close"></button>
 
         <div class="consult-right">
           <h2 id="consult-title">{{ consultContent?.title || '预约咨询' }}</h2>
@@ -476,4 +476,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

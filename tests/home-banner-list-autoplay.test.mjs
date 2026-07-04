@@ -10,3 +10,6 @@ assert.match(apiSource, /banner: bannerItems\.length \? \{\} : unwrapItem\(banne
 assert.doesNotMatch(heroSource, /matchMedia\('\(max-width:\s*768px\)'\)\.matches/)
 assert.match(heroSource, /visibleSlides\.value\.length <= 1/)
 assert.match(heroSource, /window\.setInterval/)
+assert.match(heroSource, /isVideoSlide\(/)
+assert.match(heroSource, /<video[\s\S]*autoplay[\s\S]*muted[\s\S]*loop[\s\S]*playsinline/)
+assert.match(heroSource, /<img[\s\S]*v-else/)

@@ -33,11 +33,7 @@ onMounted(async () => {
 
     <img v-if="caseItem.detailImage || caseItem.image" class="detail-image" :src="caseItem.detailImage || caseItem.image" :alt="caseItem.title" />
 
-    <section class="detail-copy">
-      <h2>项目复盘</h2>
-      <p>本案例围绕品牌阶段目标，结合平台内容语境、达人资源与转化链路，形成从策略到执行的完整社交营销方案。</p>
-      <p>通过内容测试、数据复盘和节奏调整，品牌在目标人群中的认知与行动效率获得提升。</p>
-    </section>
+    <section v-if="caseItem.content" class="detail-copy" v-html="caseItem.content"></section>
   </article>
 </template>
 
@@ -94,14 +90,46 @@ onMounted(async () => {
   padding-bottom: 96px;
 }
 
-.detail-copy h2 {
+.detail-copy :deep(h2) {
   margin: 0 0 18px;
   font-size: 28px;
 }
 
-.detail-copy p {
+.detail-copy :deep(h3) {
+  margin: 28px 0 14px;
+  font-size: 22px;
+}
+
+.detail-copy :deep(p),
+.detail-copy :deep(li) {
   color: #555;
   font-size: 17px;
   line-height: 1.9;
+}
+
+.detail-copy :deep(p),
+.detail-copy :deep(ul),
+.detail-copy :deep(ol),
+.detail-copy :deep(blockquote) {
+  margin: 0 0 18px;
+}
+
+.detail-copy :deep(ul),
+.detail-copy :deep(ol) {
+  padding-left: 24px;
+}
+
+.detail-copy :deep(blockquote) {
+  border-left: 4px solid #ff4848;
+  padding: 10px 16px;
+  background: #fff7f7;
+  color: #555;
+}
+
+.detail-copy :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
 }
 </style>

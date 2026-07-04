@@ -540,7 +540,8 @@
   padding: 6px;
 }
 
-.admin-upload-preview img {
+.admin-upload-preview img,
+.admin-upload-preview video {
   width: 54px;
   height: 34px;
   object-fit: cover;

@@ -18,6 +18,10 @@ function go(delta) {
   active.value = (active.value + delta + visibleSlides.value.length) % visibleSlides.value.length
 }
 
+function isVideoSlide(slide) {
+  return /\.mp4(?:[?#].*)?$/i.test(slide?.image || '')
+}
+
 onMounted(() => {
   if (visibleSlides.value.length <= 1) return
 
@@ -35,7 +39,17 @@ onUnmounted(() => {
 <template>
   <section v-if="currentSlide" id="home" class="hero" aria-label="首页焦点图">
     <Transition name="hero-fade" mode="out-in">
-      <img :key="currentSlide.image" class="hero-image" :src="currentSlide.image" :alt="currentSlide.title" />
+      <video
+        v-if="isVideoSlide(currentSlide)"
+        :key="currentSlide.image"
+        class="hero-image"
+        :src="currentSlide.image"
+        autoplay
+        muted
+        loop
+        playsinline
+      ></video>
+      <img v-else :key="currentSlide.image" class="hero-image" :src="currentSlide.image" :alt="currentSlide.title" />
     </Transition>
     <button v-if="visibleSlides.length > 1" class="hero-arrow hero-arrow-left" type="button" aria-label="上一张" @click="go(-1)">‹</button>
     <button v-if="visibleSlides.length > 1" class="hero-arrow hero-arrow-right" type="button" aria-label="下一张" @click="go(1)">›</button>

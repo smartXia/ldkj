@@ -933,8 +933,9 @@ func (a *App) adminUpload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if !allowedUploadExt(ext) {
-		writeError(w, badRequest("invalid_file_type", "only jpg, jpeg, png, gif, webp and pdf files are allowed"))
+	bizType := sanitizeText(r.FormValue("type"))
+	if !allowedUploadExt(ext, bizType) {
+		writeError(w, badRequest("invalid_file_type", "only jpg, jpeg, png, gif, webp, pdf and banner mp4 files are allowed"))
 		return
 	}
 	data, err := readUpload(file, a.config.MaxUploadBytes)
@@ -942,7 +943,7 @@ func (a *App) adminUpload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, badRequest("invalid_upload", "file is too large or cannot be read"))
 		return
 	}
-	if !allowedUploadContent(ext, data) {
+	if !allowedUploadContent(ext, data, bizType) {
 		writeError(w, badRequest("invalid_file_type", "file content does not match its extension"))
 		return
 	}
@@ -973,7 +974,7 @@ func (a *App) adminUpload(w http.ResponseWriter, r *http.Request) {
 		FileURL:      url,
 		MimeType:     firstNonEmpty(header.Header.Get("Content-Type"), mime.TypeByExtension(ext), http.DetectContentType(data)),
 		FileSize:     int64(len(data)),
-		BizType:      sanitizeText(r.FormValue("type")),
+		BizType:      bizType,
 	})
 	if err != nil {
 		writeError(w, err)
@@ -1308,16 +1309,18 @@ func readUpload(r io.Reader, maxBytes int64) ([]byte, error) {
 	return data, nil
 }
 
-func allowedUploadExt(ext string) bool {
+func allowedUploadExt(ext, bizType string) bool {
 	switch ext {
 	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf":
 		return true
+	case ".mp4":
+		return bizType == "banner"
 	default:
 		return false
 	}
 }
 
-func allowedUploadContent(ext string, data []byte) bool {
+func allowedUploadContent(ext string, data []byte, bizType string) bool {
 	if len(data) == 0 {
 		return false
 	}
@@ -1333,9 +1336,18 @@ func allowedUploadContent(ext string, data []byte) bool {
 		return contentType == "image/webp" || bytes.HasPrefix(data, []byte("RIFF")) && bytes.Contains(data[:min(len(data), 16)], []byte("WEBP"))
 	case ".pdf":
 		return contentType == "application/pdf" || bytes.HasPrefix(data, []byte("%PDF-"))
+	case ".mp4":
+		return bizType == "banner" && isMP4Content(data)
 	default:
 		return false
 	}
+}
+
+func isMP4Content(data []byte) bool {
+	if len(data) < 12 {
+		return false
+	}
+	return string(data[4:8]) == "ftyp"
 }
 
 func containsOrigin(list []string, origin string) bool {

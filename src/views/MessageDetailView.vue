@@ -32,8 +32,9 @@ onMounted(async () => {
 
     <img v-if="article.image" class="article-cover" :src="article.image" :alt="article.title" />
 
-    <section class="article-body">
-      <p v-for="paragraph in article.content || [article.desc]" :key="paragraph">{{ paragraph }}</p>
+    <section v-if="article.content" class="article-body" v-html="article.content"></section>
+    <section v-else class="article-body">
+      <p>{{ article.desc }}</p>
     </section>
   </article>
 </template>
@@ -85,11 +86,18 @@ onMounted(async () => {
   padding-bottom: 96px;
 }
 
-.article-body p {
+.article-body :deep(p) {
   margin: 0 0 22px;
   color: #444;
   font-size: 18px;
   line-height: 2;
+}
+
+.article-body :deep(h2) {
+  margin: 34px 0 16px;
+  color: #111;
+  font-size: 28px;
+  line-height: 1.35;
 }
 
 @media (max-width: 640px) {

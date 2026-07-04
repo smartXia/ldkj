@@ -384,6 +384,49 @@ func TestUploadPersistsMediaAsset(t *testing.T) {
 	}
 }
 
+func TestBannerUploadAllowsMP4OnlyForBanner(t *testing.T) {
+	store := newMemoryStore()
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test", UploadDir: t.TempDir()}, store)
+	token := createToken("admin", "test", time.Hour)
+	mp4Data := []byte{
+		0x00, 0x00, 0x00, 0x18,
+		'f', 't', 'y', 'p',
+		'i', 's', 'o', 'm',
+		0x00, 0x00, 0x02, 0x00,
+		'i', 's', 'o', 'm',
+		'i', 's', 'o', '2',
+	}
+
+	uploadMP4 := func(uploadType string) *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		_ = writer.WriteField("type", uploadType)
+		part, err := writer.CreateFormFile("file", "hero.mp4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = part.Write(mp4Data)
+		_ = writer.Close()
+
+		resp := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/admin/upload", &body)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		app.ServeHTTP(resp, req)
+		return resp
+	}
+
+	bannerResp := uploadMP4("banner")
+	if bannerResp.Code != http.StatusCreated || !strings.Contains(bannerResp.Body.String(), ".mp4") {
+		t.Fatalf("expected banner mp4 upload success, got %d: %s", bannerResp.Code, bannerResp.Body.String())
+	}
+
+	newsResp := uploadMP4("news")
+	if newsResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected non-banner mp4 upload to be rejected, got %d: %s", newsResp.Code, newsResp.Body.String())
+	}
+}
+
 func TestFormSubmissionCreatesEmailNotificationRecordWhenEnabled(t *testing.T) {
 	store := newMemoryStore()
 	store.emailSettings.IsEnabled = true
