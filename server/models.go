@@ -17,15 +17,23 @@ type Banner struct {
 	Title       string `json:"title"`
 	Subtitle    string `json:"subtitle"`
 	ImageURL    string `json:"image_url"`
+	Image       string `json:"image,omitempty"`
 	LinkURL     string `json:"link_url"`
+	Link        string `json:"link,omitempty"`
 	ButtonText  string `json:"button_text"`
+	Page        string `json:"page,omitempty"`
+	Sort        int    `json:"sort,omitempty"`
+	Status      string `json:"status,omitempty"`
 	IsPublished bool   `json:"is_published"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
+	UpdatedAtUI string `json:"updatedAt,omitempty"`
 }
 
 type SEOSetting struct {
 	ID          int64  `json:"id"`
 	PageKey     string `json:"page_key"`
+	Page        string `json:"page,omitempty"`
+	Name        string `json:"name,omitempty"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Keywords    string `json:"keywords"`
@@ -39,13 +47,20 @@ type Case struct {
 	Industry    string `json:"industry"`
 	Platform    string `json:"platform"`
 	Strategy    string `json:"strategy"`
+	Playbook    string `json:"playbook,omitempty"`
+	Method      string `json:"method,omitempty"`
 	CoverURL    string `json:"cover_url"`
+	Cover       string `json:"cover,omitempty"`
+	Image       string `json:"image,omitempty"`
 	Summary     string `json:"summary"`
 	Content     string `json:"content"`
 	CoreMetrics string `json:"core_metrics"`
+	Metrics     string `json:"metrics,omitempty"`
 	Status      string `json:"status"`
 	CreatedAt   string `json:"created_at,omitempty"`
+	CreatedAtUI string `json:"createdAt,omitempty"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
+	UpdatedAtUI string `json:"updatedAt,omitempty"`
 }
 
 type News struct {
@@ -54,12 +69,19 @@ type News struct {
 	Slug        string `json:"slug"`
 	Category    string `json:"category"`
 	CoverURL    string `json:"cover_url"`
+	Cover       string `json:"cover,omitempty"`
+	Image       string `json:"image,omitempty"`
 	Summary     string `json:"summary"`
+	Desc        string `json:"desc,omitempty"`
 	Content     string `json:"content"`
 	Status      string `json:"status"`
 	PublishedAt string `json:"published_at"`
+	PublishedAtUI string `json:"publishedAt,omitempty"`
+	Date        string `json:"date,omitempty"`
 	CreatedAt   string `json:"created_at,omitempty"`
+	CreatedAtUI string `json:"createdAt,omitempty"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
+	UpdatedAtUI string `json:"updatedAt,omitempty"`
 }
 
 type LeadForm struct {
@@ -74,7 +96,76 @@ type LeadForm struct {
 	Source      string `json:"source"`
 	Status      string `json:"status"`
 	CreatedAt   string `json:"created_at,omitempty"`
+	CreatedAtUI string `json:"createdAt,omitempty"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
+	UpdatedAtUI string `json:"updatedAt,omitempty"`
+}
+
+type Service struct {
+	ID          int64    `json:"id"`
+	Slug        string   `json:"slug"`
+	Title       string   `json:"title"`
+	Subtitle    string   `json:"subtitle"`
+	Summary     string   `json:"summary"`
+	CoverURL    string   `json:"cover_url"`
+	Image       string   `json:"image,omitempty"`
+	IconURL     string   `json:"icon_url"`
+	Content     string   `json:"content"`
+	Highlights  []string `json:"highlights,omitempty"`
+	HighlightText string `json:"highlight_text,omitempty"`
+	Process     []string `json:"process,omitempty"`
+	ProcessText string `json:"process_text,omitempty"`
+	SortOrder   int      `json:"sort_order"`
+	Status      string   `json:"status"`
+	CreatedAt   string   `json:"created_at,omitempty"`
+	CreatedAtUI string   `json:"createdAt,omitempty"`
+	UpdatedAt   string   `json:"updated_at,omitempty"`
+	UpdatedAtUI string   `json:"updatedAt,omitempty"`
+}
+
+type StaticPage struct {
+	ID        int64  `json:"id"`
+	PageKey   string `json:"page_key"`
+	Page      string `json:"page,omitempty"`
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	ExtraData string `json:"extra_data"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
+type PartnerFAQ struct {
+	ID          int64  `json:"id"`
+	Question    string `json:"question"`
+	Answer      string `json:"answer"`
+	SortOrder   int    `json:"sort_order"`
+	Sort        int    `json:"sort,omitempty"`
+	IsPublished bool   `json:"is_published"`
+	Status      string `json:"status,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+	UpdatedAt   string `json:"updated_at,omitempty"`
+}
+
+type DashboardStats struct {
+	Cases        int64 `json:"cases"`
+	News         int64 `json:"news"`
+	Forms        int64 `json:"forms"`
+	PendingForms int64 `json:"pendingForms"`
+	Services     int64 `json:"services"`
+}
+
+type OperationLog struct {
+	ID        int64  `json:"id"`
+	UserID    int64  `json:"user_id,omitempty"`
+	Username  string `json:"username"`
+	User      string `json:"user,omitempty"`
+	Action    string `json:"action"`
+	Module    string `json:"module"`
+	Target    string `json:"target,omitempty"`
+	TargetID  int64  `json:"target_id,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
+	CreatedAtUI string `json:"createdAt,omitempty"`
 }
 
 type ListOptions struct {

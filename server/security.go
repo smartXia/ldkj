@@ -63,6 +63,26 @@ func validateToken(token, secret string) bool {
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(parts[2])) == 1
 }
 
+func tokenSubject(token, secret string) string {
+	raw, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(string(raw), "|")
+	if len(parts) != 3 {
+		return ""
+	}
+	exp, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil || time.Now().Unix() > exp {
+		return ""
+	}
+	expected := sign(parts[0]+"|"+parts[1], secret)
+	if subtle.ConstantTimeCompare([]byte(expected), []byte(parts[2])) != 1 {
+		return ""
+	}
+	return parts[0]
+}
+
 func sign(payload, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payload))

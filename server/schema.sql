@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS services (
   icon_url VARCHAR(500) NOT NULL DEFAULT '' COMMENT '服务图标',
   content MEDIUMTEXT NOT NULL COMMENT '服务详情内容',
   highlights TEXT NOT NULL COMMENT '服务亮点，建议存 JSON 字符串',
+  process_steps TEXT NOT NULL COMMENT '服务流程，建议存 JSON 字符串',
   sort_order INT NOT NULL DEFAULT 0 COMMENT '排序值',
   status ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft' COMMENT '发布状态',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

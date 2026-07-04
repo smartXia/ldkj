@@ -44,6 +44,9 @@ func (a *App) routes() {
 	a.mux.HandleFunc("/api/health", a.handleHealth)
 	a.mux.HandleFunc("/api/public/site", a.publicSite)
 	a.mux.HandleFunc("/api/public/banner", a.publicBanner)
+	a.mux.HandleFunc("/api/services", a.publicServices)
+	a.mux.HandleFunc("/api/services/", a.publicServiceDetail)
+	a.mux.HandleFunc("/api/partner", a.publicPartner)
 	a.mux.HandleFunc("/api/public/cases", a.publicCases)
 	a.mux.HandleFunc("/api/public/cases/", a.publicCaseDetail)
 	a.mux.HandleFunc("/api/public/news", a.publicNews)
@@ -51,11 +54,28 @@ func (a *App) routes() {
 	a.mux.HandleFunc("/api/public/forms", a.publicForms)
 
 	a.mux.HandleFunc("/api/admin/login", a.adminLogin)
+	a.mux.HandleFunc("/api/admin/dashboard", a.auth(a.adminDashboard))
+	a.mux.HandleFunc("/api/admin/services/export", a.auth(a.adminServicesExport))
+	a.mux.HandleFunc("/api/admin/services", a.auth(a.adminServices))
+	a.mux.HandleFunc("/api/admin/services/", a.auth(a.adminServiceItem))
+	a.mux.HandleFunc("/api/admin/pages/export", a.auth(a.adminPagesExport))
+	a.mux.HandleFunc("/api/admin/pages", a.auth(a.adminPages))
+	a.mux.HandleFunc("/api/admin/pages/", a.auth(a.adminPageItem))
+	a.mux.HandleFunc("/api/admin/faqs/export", a.auth(a.adminFAQsExport))
+	a.mux.HandleFunc("/api/admin/faqs", a.auth(a.adminFAQs))
+	a.mux.HandleFunc("/api/admin/faqs/", a.auth(a.adminFAQItem))
+	a.mux.HandleFunc("/api/admin/cases/export", a.auth(a.adminCasesExport))
 	a.mux.HandleFunc("/api/admin/cases", a.auth(a.adminCases))
 	a.mux.HandleFunc("/api/admin/cases/", a.auth(a.adminCaseDetail))
+	a.mux.HandleFunc("/api/admin/news/export", a.auth(a.adminNewsExport))
 	a.mux.HandleFunc("/api/admin/news", a.auth(a.adminNews))
 	a.mux.HandleFunc("/api/admin/news/", a.auth(a.adminNewsItem))
+	a.mux.HandleFunc("/api/admin/banners/export", a.auth(a.adminBannersExport))
+	a.mux.HandleFunc("/api/admin/banners", a.auth(a.adminBanners))
+	a.mux.HandleFunc("/api/admin/banners/", a.auth(a.adminBannerItem))
 	a.mux.HandleFunc("/api/admin/banner", a.auth(a.adminBanner))
+	a.mux.HandleFunc("/api/admin/settings/site", a.auth(a.adminSettings))
+	a.mux.HandleFunc("/api/admin/settings/seo", a.auth(a.adminSEOCollection))
 	a.mux.HandleFunc("/api/admin/settings", a.auth(a.adminSettings))
 	a.mux.HandleFunc("/api/admin/seo", a.auth(a.adminSEO))
 	a.mux.HandleFunc("/api/admin/forms/export", a.auth(a.adminFormsExport))
@@ -83,6 +103,45 @@ func (a *App) publicBanner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond(w, must(a.store.GetBanner(r.Context())))
+}
+
+func (a *App) publicServices(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	opts, err := listOptions(r, true)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	opts.Status = "published"
+	respond(w, must(a.store.ListServices(r.Context(), opts)))
+}
+
+func (a *App) publicServiceDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	respond(w, must(a.store.GetService(r.Context(), pathID(r.URL.Path, "/api/services/"), false)))
+}
+
+func (a *App) publicPartner(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	faqs, err := a.store.ListFAQs(r.Context(), ListOptions{Page: 1, PageSize: 100, Status: "published"})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	page, _ := a.store.GetStaticPage(r.Context(), "partner", false)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"page": page,
+		"faqs": faqs.Items,
+	})
 }
 
 func (a *App) publicCases(w http.ResponseWriter, r *http.Request) {
@@ -168,6 +227,74 @@ func (a *App) adminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"token": createToken(input.Username, a.config.TokenSecret, a.config.TokenTTL())})
+}
+
+func (a *App) adminDashboard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	stats, activities, err := a.store.Dashboard(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"stats": stats, "activities": activities})
+}
+
+func (a *App) adminServices(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		opts, err := listOptions(r, false)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		respond(w, must(a.store.ListServices(r.Context(), opts)))
+	case http.MethodPost:
+		var item Service
+		if err := readJSON(r, &item); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		item = sanitizeService(item)
+		if item.Title == "" {
+			writeError(w, badRequest("invalid_service", "title is required"))
+			return
+		}
+		created, err := a.store.CreateService(r.Context(), item)
+		a.logAdmin(r, "create", "services", created.ID)
+		respondCreated(w, must(created, err))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminServiceItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseIntID(pathID(r.URL.Path, "/api/admin/services/"))
+	if !ok {
+		writeError(w, badRequest("invalid_id", "invalid ID"))
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		respond(w, must(a.store.GetService(r.Context(), strconv.FormatInt(id, 10), true)))
+	case http.MethodPut:
+		var item Service
+		if err := readJSON(r, &item); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		updated, err := a.store.UpdateService(r.Context(), id, sanitizeService(item))
+		a.logAdmin(r, "update", "services", id)
+		respond(w, must(updated, err))
+	case http.MethodDelete:
+		err := a.store.DeleteService(r.Context(), id)
+		a.logAdmin(r, "delete", "services", id)
+		respond(w, result(map[string]bool{"deleted": true}, err))
+	default:
+		methodNotAllowed(w)
+	}
 }
 
 func (a *App) adminCases(w http.ResponseWriter, r *http.Request) {
@@ -268,6 +395,166 @@ func (a *App) adminNewsItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) adminPages(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		opts, err := listOptions(r, false)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		respond(w, must(a.store.ListStaticPages(r.Context(), opts)))
+	case http.MethodPost:
+		var item StaticPage
+		if err := readJSON(r, &item); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		item = sanitizePage(item)
+		if item.PageKey == "" || item.Title == "" {
+			writeError(w, badRequest("invalid_page", "page_key and title are required"))
+			return
+		}
+		created, err := a.store.CreateStaticPage(r.Context(), item)
+		a.logAdmin(r, "create", "pages", created.ID)
+		respondCreated(w, must(created, err))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminPageItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseIntID(pathID(r.URL.Path, "/api/admin/pages/"))
+	if !ok {
+		writeError(w, badRequest("invalid_id", "invalid ID"))
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		respond(w, must(a.store.GetStaticPage(r.Context(), strconv.FormatInt(id, 10), true)))
+	case http.MethodPut:
+		var item StaticPage
+		if err := readJSON(r, &item); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		updated, err := a.store.UpdateStaticPage(r.Context(), id, sanitizePage(item))
+		a.logAdmin(r, "update", "pages", id)
+		respond(w, must(updated, err))
+	case http.MethodDelete:
+		err := a.store.DeleteStaticPage(r.Context(), id)
+		a.logAdmin(r, "delete", "pages", id)
+		respond(w, result(map[string]bool{"deleted": true}, err))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminFAQs(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		opts, err := listOptions(r, false)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		respond(w, must(a.store.ListFAQs(r.Context(), opts)))
+	case http.MethodPost:
+		var item PartnerFAQ
+		if err := readJSON(r, &item); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		item = sanitizeFAQ(item)
+		if item.Question == "" || item.Answer == "" {
+			writeError(w, badRequest("invalid_faq", "question and answer are required"))
+			return
+		}
+		created, err := a.store.CreateFAQ(r.Context(), item)
+		a.logAdmin(r, "create", "faqs", created.ID)
+		respondCreated(w, must(created, err))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminFAQItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseIntID(pathID(r.URL.Path, "/api/admin/faqs/"))
+	if !ok {
+		writeError(w, badRequest("invalid_id", "invalid ID"))
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		respond(w, must(a.store.GetFAQ(r.Context(), id)))
+	case http.MethodPut:
+		var item PartnerFAQ
+		if err := readJSON(r, &item); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		updated, err := a.store.UpdateFAQ(r.Context(), id, sanitizeFAQ(item))
+		a.logAdmin(r, "update", "faqs", id)
+		respond(w, must(updated, err))
+	case http.MethodDelete:
+		err := a.store.DeleteFAQ(r.Context(), id)
+		a.logAdmin(r, "delete", "faqs", id)
+		respond(w, result(map[string]bool{"deleted": true}, err))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminBanners(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		banner, err := a.store.GetBanner(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ListResult[Banner]{Items: []Banner{banner}, Total: 1, Page: 1, PageSize: 10})
+	case http.MethodPost:
+		var banner Banner
+		if err := readJSON(r, &banner); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		saved, err := a.store.SaveBanner(r.Context(), sanitizeBanner(banner))
+		a.logAdmin(r, "create", "banners", saved.ID)
+		respondCreated(w, must(saved, err))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminBannerItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseIntID(pathID(r.URL.Path, "/api/admin/banners/"))
+	if !ok {
+		writeError(w, badRequest("invalid_id", "invalid ID"))
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		respond(w, must(a.store.GetBanner(r.Context())))
+	case http.MethodPut:
+		var banner Banner
+		if err := readJSON(r, &banner); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		banner.ID = id
+		saved, err := a.store.SaveBanner(r.Context(), sanitizeBanner(banner))
+		a.logAdmin(r, "update", "banners", id)
+		respond(w, must(saved, err))
+	case http.MethodDelete:
+		a.logAdmin(r, "delete", "banners", id)
+		respond(w, result(map[string]bool{"deleted": true}, nil))
+	default:
+		methodNotAllowed(w)
+	}
+}
+
 func (a *App) adminBanner(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -338,6 +625,48 @@ func (a *App) adminSEO(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) adminSEOCollection(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		items, err := a.store.ListSEO(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	case http.MethodPut:
+		var input struct {
+			Items []SEOSetting `json:"items"`
+		}
+		if err := readJSON(r, &input); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		for _, seo := range input.Items {
+			seo.PageKey = firstNonEmpty(sanitizeText(seo.PageKey), sanitizeText(seo.Page))
+			seo.Title = sanitizeText(seo.Title)
+			seo.Description = sanitizeText(seo.Description)
+			seo.Keywords = sanitizeText(seo.Keywords)
+			if seo.PageKey == "" {
+				continue
+			}
+			if _, err := a.store.SaveSEO(r.Context(), seo); err != nil {
+				writeError(w, err)
+				return
+			}
+		}
+		a.logAdmin(r, "update", "seo_settings", 0)
+		items, err := a.store.ListSEO(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	default:
+		methodNotAllowed(w)
+	}
+}
+
 func (a *App) adminForms(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -360,7 +689,113 @@ func (a *App) adminFormsExport(w http.ResponseWriter, r *http.Request) {
 	a.exportForms(w, r)
 }
 
+func (a *App) adminServicesExport(w http.ResponseWriter, r *http.Request) {
+	result, err := a.store.ListServices(r.Context(), ListOptions{Page: 1, PageSize: 10000, Status: sanitizeText(r.URL.Query().Get("status")), Keyword: sanitizeText(r.URL.Query().Get("keyword"))})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	rows := [][]string{{"id", "title", "slug", "status", "updated_at"}}
+	for _, item := range result.Items {
+		rows = append(rows, []string{strconv.FormatInt(item.ID, 10), item.Title, item.Slug, item.Status, item.UpdatedAt})
+	}
+	writeCSVRows(w, "services.csv", rows)
+}
+
+func (a *App) adminPagesExport(w http.ResponseWriter, r *http.Request) {
+	result, err := a.store.ListStaticPages(r.Context(), ListOptions{Page: 1, PageSize: 10000, Status: sanitizeText(r.URL.Query().Get("status")), Keyword: sanitizeText(r.URL.Query().Get("keyword"))})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	rows := [][]string{{"id", "page_key", "title", "status", "updated_at"}}
+	for _, item := range result.Items {
+		rows = append(rows, []string{strconv.FormatInt(item.ID, 10), item.PageKey, item.Title, item.Status, item.UpdatedAt})
+	}
+	writeCSVRows(w, "pages.csv", rows)
+}
+
+func (a *App) adminFAQsExport(w http.ResponseWriter, r *http.Request) {
+	result, err := a.store.ListFAQs(r.Context(), ListOptions{Page: 1, PageSize: 10000, Status: sanitizeText(r.URL.Query().Get("status"))})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	rows := [][]string{{"id", "question", "answer", "status", "updated_at"}}
+	for _, item := range result.Items {
+		rows = append(rows, []string{strconv.FormatInt(item.ID, 10), item.Question, item.Answer, item.Status, item.UpdatedAt})
+	}
+	writeCSVRows(w, "faqs.csv", rows)
+}
+
+func (a *App) adminCasesExport(w http.ResponseWriter, r *http.Request) {
+	opts, _ := listOptions(r, false)
+	opts.Page, opts.PageSize = 1, 10000
+	result, err := a.store.ListCases(r.Context(), opts)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	rows := [][]string{{"id", "title", "industry", "platform", "strategy", "status", "updated_at"}}
+	for _, item := range result.Items {
+		rows = append(rows, []string{strconv.FormatInt(item.ID, 10), item.Title, item.Industry, item.Platform, item.Strategy, item.Status, item.UpdatedAt})
+	}
+	writeCSVRows(w, "cases.csv", rows)
+}
+
+func (a *App) adminNewsExport(w http.ResponseWriter, r *http.Request) {
+	opts, _ := listOptions(r, false)
+	opts.Page, opts.PageSize = 1, 10000
+	result, err := a.store.ListNews(r.Context(), opts)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	rows := [][]string{{"id", "title", "category", "status", "published_at", "updated_at"}}
+	for _, item := range result.Items {
+		rows = append(rows, []string{strconv.FormatInt(item.ID, 10), item.Title, item.Category, item.Status, item.PublishedAt, item.UpdatedAt})
+	}
+	writeCSVRows(w, "news.csv", rows)
+}
+
+func (a *App) adminBannersExport(w http.ResponseWriter, r *http.Request) {
+	banner, err := a.store.GetBanner(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeCSVRows(w, "banners.csv", [][]string{
+		{"id", "title", "subtitle", "image_url", "link_url", "status", "updated_at"},
+		{strconv.FormatInt(banner.ID, 10), banner.Title, banner.Subtitle, banner.ImageURL, banner.LinkURL, banner.Status, banner.UpdatedAt},
+	})
+}
+
 func (a *App) adminFormItem(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPut {
+		id, ok := parseIntID(pathID(r.URL.Path, "/api/admin/forms/"))
+		if !ok {
+			writeError(w, badRequest("invalid_id", "invalid ID"))
+			return
+		}
+		var input struct {
+			Status string `json:"status"`
+		}
+		if err := readJSON(r, &input); err != nil {
+			writeError(w, badRequest("invalid_json", "request body must be valid JSON"))
+			return
+		}
+		if input.Status == "pending" {
+			input.Status = "new"
+		}
+		if input.Status != "new" && input.Status != "processed" {
+			writeError(w, badRequest("invalid_status", "status must be new or processed"))
+			return
+		}
+		updated, err := a.store.UpdateFormStatus(r.Context(), id, input.Status)
+		a.logAdmin(r, "update", "lead_forms", id)
+		respond(w, must(updated, err))
+		return
+	}
 	if strings.HasSuffix(r.URL.Path, "/status") && r.Method == http.MethodPatch {
 		idPart := strings.TrimSuffix(pathID(r.URL.Path, "/api/admin/forms/"), "/status")
 		id, ok := parseIntID(idPart)
@@ -401,6 +836,17 @@ func (a *App) exportForms(w http.ResponseWriter, r *http.Request) {
 			strconv.FormatInt(item.ID, 10), item.Name, item.Phone, item.Company, item.Position, item.Email,
 			item.Requirement, item.Interest, item.Source, item.Status, item.CreatedAt,
 		})
+	}
+	writer.Flush()
+}
+
+func writeCSVRows(w http.ResponseWriter, filename string, rows [][]string) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	w.WriteHeader(http.StatusOK)
+	writer := csv.NewWriter(w)
+	for _, row := range rows {
+		_ = writer.Write(row)
 	}
 	writer.Flush()
 }
@@ -530,7 +976,6 @@ func positiveInt(raw string, fallback, min, max int) (int, error) {
 
 func readJSON(r *http.Request, out any) error {
 	decoder := json.NewDecoder(http.MaxBytesReader(nilWriter{}, r.Body, 1<<20))
-	decoder.DisallowUnknownFields()
 	return decoder.Decode(out)
 }
 
@@ -615,12 +1060,17 @@ func sanitizeCase(item Case) Case {
 	item.Industry = sanitizeText(item.Industry)
 	item.Platform = sanitizeText(item.Platform)
 	item.Strategy = sanitizeText(item.Strategy)
+	item.Playbook = sanitizeText(item.Playbook)
+	item.Method = sanitizeText(item.Method)
 	item.CoverURL = sanitizeText(item.CoverURL)
+	item.Cover = sanitizeText(item.Cover)
+	item.Image = sanitizeText(item.Image)
 	item.Summary = sanitizeText(item.Summary)
 	item.Content = sanitizeHTML(item.Content)
 	item.CoreMetrics = sanitizeText(item.CoreMetrics)
+	item.Metrics = sanitizeText(item.Metrics)
 	item.Status = validateStatus(item.Status)
-	return item
+	return normalizeCase(item)
 }
 
 func sanitizeNews(item News) News {
@@ -628,14 +1078,19 @@ func sanitizeNews(item News) News {
 	item.Slug = sanitizeText(item.Slug)
 	item.Category = sanitizeText(item.Category)
 	item.CoverURL = sanitizeText(item.CoverURL)
+	item.Cover = sanitizeText(item.Cover)
+	item.Image = sanitizeText(item.Image)
 	item.Summary = sanitizeText(item.Summary)
+	item.Desc = sanitizeText(item.Desc)
 	item.Content = sanitizeHTML(item.Content)
 	item.Status = validateStatus(item.Status)
 	item.PublishedAt = sanitizeText(item.PublishedAt)
+	item.PublishedAtUI = sanitizeText(item.PublishedAtUI)
+	item.Date = sanitizeText(item.Date)
 	if item.PublishedAt == "" {
 		item.PublishedAt = time.Now().Format("2006-01-02 15:04:05")
 	}
-	return item
+	return normalizeNews(item)
 }
 
 func sanitizeForm(form LeadForm) LeadForm {
@@ -647,10 +1102,69 @@ func sanitizeForm(form LeadForm) LeadForm {
 	form.Requirement = sanitizeText(form.Requirement)
 	form.Interest = sanitizeText(form.Interest)
 	form.Source = sanitizeText(form.Source)
+	if form.Status == "pending" {
+		form.Status = "new"
+	}
 	if form.Status == "" {
 		form.Status = "new"
 	}
-	return form
+	return normalizeForm(form)
+}
+
+func sanitizeBanner(banner Banner) Banner {
+	banner.Title = sanitizeText(banner.Title)
+	banner.Subtitle = sanitizeText(banner.Subtitle)
+	banner.ImageURL = sanitizeText(banner.ImageURL)
+	banner.Image = sanitizeText(banner.Image)
+	banner.LinkURL = sanitizeText(banner.LinkURL)
+	banner.Link = sanitizeText(banner.Link)
+	banner.ButtonText = sanitizeText(banner.ButtonText)
+	banner.Page = sanitizeText(banner.Page)
+	banner.Status = sanitizeText(banner.Status)
+	return normalizeBanner(banner)
+}
+
+func sanitizeService(item Service) Service {
+	item.Title = sanitizeText(item.Title)
+	item.Slug = sanitizeText(item.Slug)
+	item.Subtitle = sanitizeText(item.Subtitle)
+	item.Summary = sanitizeText(item.Summary)
+	item.CoverURL = sanitizeText(item.CoverURL)
+	item.Image = sanitizeText(item.Image)
+	item.IconURL = sanitizeText(item.IconURL)
+	item.Content = sanitizeHTML(item.Content)
+	item.HighlightText = sanitizeText(item.HighlightText)
+	item.ProcessText = sanitizeText(item.ProcessText)
+	item.Status = validateStatus(item.Status)
+	return normalizeService(item)
+}
+
+func sanitizePage(item StaticPage) StaticPage {
+	item.PageKey = sanitizeText(item.PageKey)
+	item.Page = sanitizeText(item.Page)
+	item.Title = sanitizeText(item.Title)
+	item.Content = sanitizeHTML(item.Content)
+	item.ExtraData = sanitizeHTML(item.ExtraData)
+	item.Status = validateStatus(item.Status)
+	return normalizePage(item)
+}
+
+func sanitizeFAQ(item PartnerFAQ) PartnerFAQ {
+	item.Question = sanitizeText(item.Question)
+	item.Answer = sanitizeHTML(item.Answer)
+	item.Status = sanitizeText(item.Status)
+	return normalizeFAQ(item)
+}
+
+func (a *App) logAdmin(r *http.Request, action, module string, targetID int64) {
+	_ = a.store.LogOperation(r.Context(), OperationLog{
+		Username:  tokenSubject(bearerToken(r), a.config.TokenSecret),
+		Action:    action,
+		Module:    module,
+		Target:    module,
+		TargetID:  targetID,
+		CreatedAt: nowString(),
+	})
 }
 
 func readUpload(r io.Reader, maxBytes int64) ([]byte, error) {
