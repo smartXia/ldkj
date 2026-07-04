@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPublicCasesRejectsInjectedPageSizeAndReturnsPublishedItems(t *testing.T) {
@@ -153,6 +154,82 @@ func TestAdminAuthCrudCSVAndUpload(t *testing.T) {
 	}
 	if len(matches) != 1 {
 		t.Fatalf("expected uploaded file on disk, got %d files", len(matches))
+	}
+}
+
+func TestPublicServicesPartnerAndAdminDashboard(t *testing.T) {
+	store := newMemoryStore()
+	store.services[1] = Service{
+		ID:          1,
+		Title:       "Social Service",
+		Slug:        "social-service",
+		Summary:     "service summary",
+		CoverURL:    "/oss/service.png",
+		Status:      "published",
+		Highlights:  []string{"strategy", "content"},
+		Process:     []string{"diagnose", "deliver"},
+	}
+	store.faqs[1] = PartnerFAQ{ID: 1, Question: "How soon?", Answer: "Within 24 hours.", IsPublished: true}
+	store.logs = append(store.logs, OperationLog{ID: 1, Username: "admin", Action: "login", Module: "auth", CreatedAt: nowString()})
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/services", nil)
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || !strings.Contains(resp.Body.String(), `"slug":"social-service"`) {
+		t.Fatalf("expected public services, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	resp = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/partner", nil)
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || !strings.Contains(resp.Body.String(), `"faqs"`) {
+		t.Fatalf("expected partner FAQ payload, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	token := createToken("admin", "test", time.Hour)
+	resp = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/admin/dashboard", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || !strings.Contains(resp.Body.String(), `"services":1`) {
+		t.Fatalf("expected dashboard stats, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestAdminAliasesAndSettingsRoutes(t *testing.T) {
+	store := newMemoryStore()
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+	token := createToken("admin", "test", time.Hour)
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/cases", strings.NewReader(`{"title":"Alias Case","slug":"alias-case","playbook":"seed","cover":"/oss/case.png","metrics":"GMV +20%","content":"body","status":"published"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("expected alias case create success, got %d: %s", resp.Code, resp.Body.String())
+	}
+	created := store.cases[1]
+	if created.Strategy != "seed" || created.CoverURL != "/oss/case.png" || created.CoreMetrics != "GMV +20%" {
+		t.Fatalf("expected case aliases to be normalized, got %#v", created)
+	}
+
+	resp = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/admin/settings/seo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || !strings.Contains(resp.Body.String(), `"items"`) {
+		t.Fatalf("expected SEO collection, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	resp = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPut, "/api/admin/settings/site", strings.NewReader(`{"site_title":"Site","logo_url":"/logo.png","contact":"Contact","copyright":"Copyright","footer_links":"[]"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || store.site.SiteTitle != "Site" {
+		t.Fatalf("expected site settings update, got %d: %s", resp.Code, resp.Body.String())
 	}
 }
 

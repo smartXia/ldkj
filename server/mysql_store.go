@@ -108,7 +108,7 @@ func (s *mysqlStore) ListSEO(ctx context.Context) ([]SEOSetting, error) {
 			return nil, err
 		}
 		item.Page = item.PageKey
-		items = append(items, normalizeCase(item))
+		items = append(items, item)
 	}
 	return items, rows.Err()
 }
@@ -360,6 +360,175 @@ func (s *mysqlStore) getForm(ctx context.Context, id int64) (LeadForm, error) {
 	return normalizeForm(item), err
 }
 
+func (s *mysqlStore) ListStaticPages(ctx context.Context, opts ListOptions) (ListResult[StaticPage], error) {
+	where, args := pageWhere(opts)
+	total, err := s.count(ctx, "static_pages", where, args)
+	if err != nil {
+		return ListResult[StaticPage]{}, err
+	}
+	args = append(args, opts.PageSize, offset(opts))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, page_key, title, content, COALESCE(extra_data, ''), status, created_at, updated_at FROM static_pages `+where+` ORDER BY id DESC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return ListResult[StaticPage]{}, err
+	}
+	defer rows.Close()
+	items := []StaticPage{}
+	for rows.Next() {
+		var item StaticPage
+		if err := rows.Scan(&item.ID, &item.PageKey, &item.Title, &item.Content, &item.ExtraData, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return ListResult[StaticPage]{}, err
+		}
+		items = append(items, normalizePage(item))
+	}
+	return ListResult[StaticPage]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
+}
+
+func (s *mysqlStore) GetStaticPage(ctx context.Context, key string, includeDraft bool) (StaticPage, error) {
+	where := `(id = ? OR page_key = ?)`
+	args := []any{numericKey(key), key}
+	if !includeDraft {
+		where += ` AND status = ?`
+		args = append(args, "published")
+	}
+	var item StaticPage
+	err := s.db.QueryRowContext(ctx, `SELECT id, page_key, title, content, COALESCE(extra_data, ''), status, created_at, updated_at FROM static_pages WHERE `+where+` LIMIT 1`, args...).Scan(
+		&item.ID, &item.PageKey, &item.Title, &item.Content, &item.ExtraData, &item.Status, &item.CreatedAt, &item.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return StaticPage{}, notFound("page not found")
+	}
+	return normalizePage(item), err
+}
+
+func (s *mysqlStore) CreateStaticPage(ctx context.Context, item StaticPage) (StaticPage, error) {
+	item = normalizePage(item)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO static_pages (page_key, title, content, extra_data, status) VALUES (?, ?, ?, ?, ?)`,
+		item.PageKey, item.Title, item.Content, item.ExtraData, item.Status)
+	if err != nil {
+		return StaticPage{}, err
+	}
+	id, _ := res.LastInsertId()
+	return s.GetStaticPage(ctx, strconv.FormatInt(id, 10), true)
+}
+
+func (s *mysqlStore) UpdateStaticPage(ctx context.Context, id int64, item StaticPage) (StaticPage, error) {
+	item = normalizePage(item)
+	res, err := s.db.ExecContext(ctx, `UPDATE static_pages SET page_key=?, title=?, content=?, extra_data=?, status=? WHERE id=?`,
+		item.PageKey, item.Title, item.Content, item.ExtraData, item.Status, id)
+	if err := checkRows(res, err, "page not found"); err != nil {
+		return StaticPage{}, err
+	}
+	return s.GetStaticPage(ctx, strconv.FormatInt(id, 10), true)
+}
+
+func (s *mysqlStore) DeleteStaticPage(ctx context.Context, id int64) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM static_pages WHERE id = ?`, id)
+	return checkRows(res, err, "page not found")
+}
+
+func (s *mysqlStore) ListFAQs(ctx context.Context, opts ListOptions) (ListResult[PartnerFAQ], error) {
+	where, args := faqWhere(opts)
+	total, err := s.count(ctx, "partner_faqs", where, args)
+	if err != nil {
+		return ListResult[PartnerFAQ]{}, err
+	}
+	args = append(args, opts.PageSize, offset(opts))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, question, answer, sort_order, is_published, created_at, updated_at FROM partner_faqs `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return ListResult[PartnerFAQ]{}, err
+	}
+	defer rows.Close()
+	items := []PartnerFAQ{}
+	for rows.Next() {
+		var item PartnerFAQ
+		if err := rows.Scan(&item.ID, &item.Question, &item.Answer, &item.SortOrder, &item.IsPublished, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return ListResult[PartnerFAQ]{}, err
+		}
+		items = append(items, normalizeFAQ(item))
+	}
+	return ListResult[PartnerFAQ]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
+}
+
+func (s *mysqlStore) GetFAQ(ctx context.Context, id int64) (PartnerFAQ, error) {
+	var item PartnerFAQ
+	err := s.db.QueryRowContext(ctx, `SELECT id, question, answer, sort_order, is_published, created_at, updated_at FROM partner_faqs WHERE id = ?`, id).Scan(
+		&item.ID, &item.Question, &item.Answer, &item.SortOrder, &item.IsPublished, &item.CreatedAt, &item.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return PartnerFAQ{}, notFound("faq not found")
+	}
+	return normalizeFAQ(item), err
+}
+
+func (s *mysqlStore) CreateFAQ(ctx context.Context, item PartnerFAQ) (PartnerFAQ, error) {
+	item = normalizeFAQ(item)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO partner_faqs (question, answer, sort_order, is_published) VALUES (?, ?, ?, ?)`,
+		item.Question, item.Answer, item.SortOrder, item.IsPublished)
+	if err != nil {
+		return PartnerFAQ{}, err
+	}
+	id, _ := res.LastInsertId()
+	return s.GetFAQ(ctx, id)
+}
+
+func (s *mysqlStore) UpdateFAQ(ctx context.Context, id int64, item PartnerFAQ) (PartnerFAQ, error) {
+	item = normalizeFAQ(item)
+	res, err := s.db.ExecContext(ctx, `UPDATE partner_faqs SET question=?, answer=?, sort_order=?, is_published=? WHERE id=?`,
+		item.Question, item.Answer, item.SortOrder, item.IsPublished, id)
+	if err := checkRows(res, err, "faq not found"); err != nil {
+		return PartnerFAQ{}, err
+	}
+	return s.GetFAQ(ctx, id)
+}
+
+func (s *mysqlStore) DeleteFAQ(ctx context.Context, id int64) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM partner_faqs WHERE id = ?`, id)
+	return checkRows(res, err, "faq not found")
+}
+
+func (s *mysqlStore) Dashboard(ctx context.Context) (DashboardStats, []OperationLog, error) {
+	var stats DashboardStats
+	countTable := func(table, where string, args ...any) (int64, error) {
+		var total int64
+		err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s %s", table, where), args...).Scan(&total)
+		return total, err
+	}
+	var err error
+	if stats.Cases, err = countTable("cases", ""); err != nil {
+		return stats, nil, err
+	}
+	if stats.News, err = countTable("news", ""); err != nil {
+		return stats, nil, err
+	}
+	if stats.Forms, err = countTable("lead_forms", ""); err != nil {
+		return stats, nil, err
+	}
+	if stats.PendingForms, err = countTable("lead_forms", "WHERE status = ?", "new"); err != nil {
+		return stats, nil, err
+	}
+	if stats.Services, err = countTable("services", ""); err != nil {
+		return stats, nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, COALESCE(user_id, 0), username, action, module, COALESCE(target_id, 0), created_at FROM operation_logs ORDER BY id DESC LIMIT 20`)
+	if err != nil {
+		return stats, nil, err
+	}
+	defer rows.Close()
+	logs := []OperationLog{}
+	for rows.Next() {
+		var item OperationLog
+		if err := rows.Scan(&item.ID, &item.UserID, &item.Username, &item.Action, &item.Module, &item.TargetID, &item.CreatedAt); err != nil {
+			return stats, nil, err
+		}
+		logs = append(logs, normalizeLog(item))
+	}
+	return stats, logs, rows.Err()
+}
+
+func (s *mysqlStore) LogOperation(ctx context.Context, log OperationLog) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO operation_logs (username, action, module, target_table, target_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())`,
+		log.Username, log.Action, log.Module, log.Target, log.TargetID)
+	return err
+}
+
 func (s *mysqlStore) count(ctx context.Context, table, where string, args []any) (int64, error) {
 	var total int64
 	err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s %s", table, where), args...).Scan(&total)
@@ -388,6 +557,46 @@ func newsWhere(opts ListOptions) (string, []any) {
 	if opts.Keyword != "" {
 		parts = append(parts, "title LIKE ?")
 		args = append(args, "%"+opts.Keyword+"%")
+	}
+	return whereClause(parts), args
+}
+
+func serviceWhere(opts ListOptions) (string, []any) {
+	parts := []string{}
+	args := []any{}
+	addEq(&parts, &args, "status", opts.Status)
+	if opts.Keyword != "" {
+		parts = append(parts, "(title LIKE ? OR summary LIKE ?)")
+		args = append(args, "%"+opts.Keyword+"%", "%"+opts.Keyword+"%")
+	}
+	return whereClause(parts), args
+}
+
+func pageWhere(opts ListOptions) (string, []any) {
+	parts := []string{}
+	args := []any{}
+	addEq(&parts, &args, "status", opts.Status)
+	if opts.Keyword != "" {
+		parts = append(parts, "(title LIKE ? OR page_key LIKE ?)")
+		args = append(args, "%"+opts.Keyword+"%", "%"+opts.Keyword+"%")
+	}
+	return whereClause(parts), args
+}
+
+func faqWhere(opts ListOptions) (string, []any) {
+	parts := []string{}
+	args := []any{}
+	switch opts.Status {
+	case "published", "enabled":
+		parts = append(parts, "is_published = ?")
+		args = append(args, true)
+	case "draft", "disabled":
+		parts = append(parts, "is_published = ?")
+		args = append(args, false)
+	}
+	if opts.Keyword != "" {
+		parts = append(parts, "(question LIKE ? OR answer LIKE ?)")
+		args = append(args, "%"+opts.Keyword+"%", "%"+opts.Keyword+"%")
 	}
 	return whereClause(parts), args
 }

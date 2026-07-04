@@ -675,6 +675,9 @@ func (a *App) adminForms(w http.ResponseWriter, r *http.Request) {
 			writeError(w, err)
 			return
 		}
+		if opts.Status == "pending" {
+			opts.Status = "new"
+		}
 		respond(w, must(a.store.ListForms(r.Context(), opts)))
 	default:
 		methodNotAllowed(w)
@@ -821,7 +824,11 @@ func (a *App) adminFormItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) exportForms(w http.ResponseWriter, r *http.Request) {
-	result, err := a.store.ListForms(r.Context(), ListOptions{Page: 1, PageSize: 10000, Status: sanitizeText(r.URL.Query().Get("status"))})
+	status := sanitizeText(r.URL.Query().Get("status"))
+	if status == "pending" {
+		status = "new"
+	}
+	result, err := a.store.ListForms(r.Context(), ListOptions{Page: 1, PageSize: 10000, Status: status})
 	if err != nil {
 		writeError(w, err)
 		return
