@@ -81,7 +81,7 @@ function closeLanguageOnFocusout(event) {
 
       <div class="header-actions">
         <button class="btn primary" type="button" @click="openConsult">{{ messages.header.consult }}</button>
-        <a class="btn ghost" href="#login">{{ messages.header.login }}</a>
+        <RouterLink class="btn ghost" to="/admin/login">{{ messages.header.login }}</RouterLink>
         <div class="language-switch" @focusout="closeLanguageOnFocusout" @keydown.esc="languageOpen = false">
           <button
             class="language"
