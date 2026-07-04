@@ -280,17 +280,6 @@ CREATE TABLE IF NOT EXISTS analytics_settings (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='第三方数据统计配置表';
 
-CREATE TABLE IF NOT EXISTS backup_records (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '备份记录 ID',
-  backup_name VARCHAR(255) NOT NULL COMMENT '备份名称',
-  file_path VARCHAR(500) NOT NULL COMMENT '备份文件路径',
-  file_size BIGINT NOT NULL DEFAULT 0 COMMENT '文件大小，单位字节',
-  status ENUM('success', 'failed') NOT NULL DEFAULT 'success' COMMENT '备份状态',
-  remark VARCHAR(500) NOT NULL DEFAULT '' COMMENT '备注',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  KEY idx_backup_records_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='数据库备份记录表';
-
 CREATE TABLE IF NOT EXISTS system_settings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '系统配置 ID',
   setting_key VARCHAR(100) NOT NULL COMMENT '配置键',
@@ -338,8 +327,7 @@ VALUES
   ('form:process', '表单处理', 'form', '标记线索处理状态和导出数据'),
   ('settings:manage', '基础设置', 'settings', '管理站点配置、SEO、邮件、统计等设置'),
   ('user:manage', '用户权限管理', 'user', '管理后台用户、角色和权限'),
-  ('log:read', '日志查看', 'log', '查看后台操作日志'),
-  ('backup:manage', '备份管理', 'backup', '管理数据库备份记录')
+  ('log:read', '日志查看', 'log', '查看后台操作日志')
 ON DUPLICATE KEY UPDATE name = VALUES(name), module = VALUES(module), description = VALUES(description);
 
 INSERT INTO role_permissions (role_id, permission_id)
@@ -371,6 +359,5 @@ ON DUPLICATE KEY UPDATE id = id;
 INSERT INTO system_settings (setting_key, setting_value, description)
 VALUES
   ('upload_root', '/oss', '本地文件上传根目录'),
-  ('backup_retention_days', '7', '数据库备份保留天数'),
   ('site_domain', 'www.ilingdong.cn', '网站域名')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), description = VALUES(description);
