@@ -1,53 +1,91 @@
 <script setup>
 import { computed, reactive, shallowRef } from 'vue'
-
-const emit = defineEmits(['open-consult'])
+import { submitPublicForm } from '../../services/publicApi'
 
 const demandOptions = ['整合营销', '新品推广', '电商大促', '社交种草', '账号运营', '口碑管理', '其他']
 const form = reactive({
   name: '',
   phone: '',
   company: '',
-  demand: ''
+  demand: '',
 })
 const dropdownOpen = shallowRef(false)
-const submitted = shallowRef(false)
+const status = shallowRef('idle')
+const errorMessage = shallowRef('')
 
 const demandLabel = computed(() => form.demand || '请选择营销诉求')
+const isSubmitting = computed(() => status.value === 'submitting')
 
 function selectDemand(option) {
   form.demand = option
   dropdownOpen.value = false
 }
 
-function submitForm() {
-  submitted.value = true
-  emit('open-consult')
+function validateForm() {
+  if (!form.name.trim()) return '请填写您的姓名'
+  if (!form.phone.trim()) return '请填写手机号码'
+  if (!form.company.trim()) return '请填写公司名称'
+  return ''
+}
+
+function resetForm() {
+  form.name = ''
+  form.phone = ''
+  form.company = ''
+  form.demand = ''
+}
+
+async function submitForm() {
+  const validationError = validateForm()
+  if (validationError) {
+    errorMessage.value = validationError
+    status.value = 'error'
+    return
+  }
+
+  status.value = 'submitting'
+  errorMessage.value = ''
+
+  try {
+    await submitPublicForm({
+      source: 'home_footer',
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      company: form.company.trim(),
+      demand: form.demand,
+      pageUrl: window.location.href,
+    })
+    status.value = 'success'
+    resetForm()
+  } catch (error) {
+    status.value = 'error'
+    errorMessage.value = '提交失败，请稍后再试或直接联系我们。'
+  }
 }
 </script>
 
 <template>
   <section id="consult" class="consultation-container">
     <h2 class="consultation-title">预约营销咨询</h2>
-    <p class="consultation-desc">留下您的联系方式，获得一对一营销诊断</p>
+    <p class="consultation-desc">留下您的联系方式，获取一对一营销诊断</p>
 
     <div class="consultation-main">
       <div class="consultation-left">
         <img src="/assets/wsd/consulting/img_consultation.png" alt="" aria-hidden="true" />
       </div>
 
-      <form class="consultation-form" @submit.prevent="submitForm">
+      <form class="consultation-form" novalidate @submit.prevent="submitForm">
         <div class="form-row">
           <label class="field field-half">
-            <input v-model="form.name" type="text" placeholder="您的姓名" autocomplete="name" />
+            <input v-model="form.name" type="text" placeholder="您的姓名 *" autocomplete="name" />
           </label>
           <label class="field field-half">
-            <input v-model="form.phone" type="tel" placeholder="请填写手机号码" autocomplete="tel" />
+            <input v-model="form.phone" type="tel" placeholder="请填写手机号码 *" autocomplete="tel" />
           </label>
         </div>
 
         <label class="field">
-          <input v-model="form.company" type="text" placeholder="请填写公司名称" autocomplete="organization" />
+          <input v-model="form.company" type="text" placeholder="请填写公司名称 *" autocomplete="organization" />
         </label>
 
         <div class="field select-field" @mouseleave="dropdownOpen = false">
@@ -67,8 +105,11 @@ function submitForm() {
           </div>
         </div>
 
-        <button class="submit-button" type="submit">立即预约</button>
-        <p v-if="submitted" class="submit-tip" role="status">预约信息已记录，我们会尽快与您联系。</p>
+        <button class="submit-button" type="submit" :disabled="isSubmitting">
+          {{ isSubmitting ? '提交中...' : '立即预约' }}
+        </button>
+        <p v-if="status === 'success'" class="submit-tip success" role="status">预约信息已提交，我们会尽快与您联系。</p>
+        <p v-else-if="status === 'error'" class="submit-tip error" role="alert">{{ errorMessage }}</p>
       </form>
     </div>
   </section>
@@ -235,18 +276,30 @@ function submitForm() {
   font-size: 18px;
   font-weight: 600;
   cursor: pointer;
-  transition: background .2s;
+  transition: background .2s, opacity .2s;
 }
 
 .submit-button:hover {
   background: #ff3434;
 }
 
+.submit-button:disabled {
+  opacity: .72;
+  cursor: wait;
+}
+
 .submit-tip {
   margin: -8px 0 0;
-  color: #ff4848;
   font-size: 13px;
   text-align: center;
+}
+
+.submit-tip.success {
+  color: #14955f;
+}
+
+.submit-tip.error {
+  color: #ff4848;
 }
 
 @media (max-width: 767px) {

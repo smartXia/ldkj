@@ -58,8 +58,6 @@ onBeforeUnmount(() => {
         :key="article.id"
         class="message-card"
         :href="article.href"
-        target="_blank"
-        rel="noreferrer"
         :style="{ transitionDelay: `${Math.min((index % 3) * 90, 180)}ms` }"
       >
         <span class="message-image">

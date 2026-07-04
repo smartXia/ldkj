@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue'
+import { submitPublicForm } from '../../services/publicApi'
 
 const emit = defineEmits(['close'])
 
@@ -12,9 +13,11 @@ const form = reactive({
   demand: '',
 })
 const dropdownOpen = shallowRef(false)
-const submitted = shallowRef(false)
+const status = shallowRef('idle')
+const errorMessage = shallowRef('')
 
 const demandLabel = computed(() => form.demand || '请选择营销诉求')
+const isSubmitting = computed(() => status.value === 'submitting')
 
 function close() {
   emit('close')
@@ -25,8 +28,46 @@ function selectDemand(option) {
   dropdownOpen.value = false
 }
 
-function submitForm() {
-  submitted.value = true
+function validateForm() {
+  if (!form.name.trim()) return '请填写您的姓名'
+  if (!form.phone.trim()) return '请填写手机号码'
+  if (!form.company.trim()) return '请填写公司名称'
+  if (!form.demand) return '请选择营销诉求'
+  return ''
+}
+
+function resetForm() {
+  form.name = ''
+  form.phone = ''
+  form.company = ''
+  form.demand = ''
+}
+
+async function submitForm() {
+  const validationError = validateForm()
+  if (validationError) {
+    errorMessage.value = validationError
+    status.value = 'error'
+    return
+  }
+
+  status.value = 'submitting'
+  errorMessage.value = ''
+
+  try {
+    await submitPublicForm({
+      source: 'marketing_consult_dialog',
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      company: form.company.trim(),
+      requirement: form.demand,
+    })
+    status.value = 'success'
+    resetForm()
+  } catch (error) {
+    status.value = 'error'
+    errorMessage.value = '提交失败，请稍后再试或直接联系我们。'
+  }
 }
 
 function closeDropdown() {
@@ -86,7 +127,7 @@ onBeforeUnmount(() => {
 
         <div class="consult-right">
           <h2 id="consult-title">预约咨询</h2>
-          <form class="consult-form" @submit.prevent="submitForm">
+          <form class="consult-form" novalidate @submit.prevent="submitForm">
             <label>
               <span class="field-label">姓名</span>
               <input v-model="form.name" type="text" placeholder="您的姓名" autocomplete="name" />
@@ -104,7 +145,7 @@ onBeforeUnmount(() => {
 
             <label class="demand-field" @click.stop>
               <span class="field-label">营销述求</span>
-              <button class="select-trigger" type="button" :class="{ muted: !form.demand }" @click="dropdownOpen = !dropdownOpen">
+              <button class="select-trigger" type="button" :class="{ muted: !form.demand }" :disabled="isSubmitting" @click="dropdownOpen = !dropdownOpen">
                 {{ demandLabel }}
                 <i aria-hidden="true"></i>
               </button>
@@ -115,8 +156,11 @@ onBeforeUnmount(() => {
               </div>
             </label>
 
-            <button class="submit-button" type="submit">立即预约</button>
-            <p v-if="submitted" class="submit-tip" role="status">预约信息已记录，我们会尽快与您联系。</p>
+            <button class="submit-button" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? '提交中...' : '立即预约' }}
+            </button>
+            <p v-if="status === 'success'" class="submit-tip success" role="status">预约信息已提交，我们会尽快与您联系。</p>
+            <p v-else-if="status === 'error'" class="submit-tip error" role="alert">{{ errorMessage }}</p>
           </form>
         </div>
       </section>
@@ -389,10 +433,23 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.submit-button:disabled,
+.select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .submit-tip {
   margin: 0;
-  color: var(--color-brand);
   font-size: 13px;
+}
+
+.submit-tip.success {
+  color: var(--color-brand);
+}
+
+.submit-tip.error {
+  color: #d93025;
 }
 
 @media (max-width: 900px) {

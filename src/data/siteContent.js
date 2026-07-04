@@ -9,8 +9,8 @@ export const navItems = [
 ]
 
 export const heroSlides = [
-  { title: '微思敦集团斩获第十七届虎啸奖16项大奖！', image: local('hero-01.jpg') },
-  { title: '微思敦集团企业开放日', image: local('hero-03.png') },
+  { title: '南京灵动信息技术有限公司斩获第十七届虎啸奖16项大奖！', image: local('hero-01.jpg') },
+  { title: '南京灵动信息技术有限公司企业开放日', image: local('hero-03.png') },
   { title: '第三届金敦奖', image: local('hero-02.jpg') },
   { title: '金投赏', image: local('hero-04.jpg') },
   { title: '小红书种草大赏', image: local('hero-05.png') }
