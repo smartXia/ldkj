@@ -19,10 +19,10 @@ function go(delta) {
 }
 
 onMounted(() => {
-  if (window.matchMedia('(max-width: 768px)').matches) return
+  if (visibleSlides.value.length <= 1) return
 
   timer = window.setInterval(() => {
-    if (!visibleSlides.value.length) return
+    if (visibleSlides.value.length <= 1) return
     active.value = (active.value + 1) % visibleSlides.value.length
   }, 5000)
 })

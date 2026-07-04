@@ -74,6 +74,56 @@ function normalizeArticleListContent(content) {
   }
 }
 
+const defaultConsultContent = {
+  title: '预约营销咨询',
+  description: '留下您的联系方式，获取一对一营销诊断',
+  demandPlaceholder: '请选择营销诉求',
+  demandOptions: ['整合营销', '新品推广', '电商大促', '社交种草', '账号运营', '口碑管理', '其他'],
+  submitText: '立即预约',
+  submittingText: '提交中...',
+  successText: '预约信息已提交，我们会尽快与您联系。',
+  errorText: '提交失败，请稍后再试或直接联系我们。',
+}
+
+function parseJSON(value) {
+  if (!value) return {}
+  if (typeof value === 'object') return value
+  try {
+    return JSON.parse(value)
+  } catch {
+    return {}
+  }
+}
+
+function plainText(value) {
+  return typeof value === 'string' ? value.replace(/<[^>]*>/g, '').trim() : ''
+}
+
+function normalizeConsultContent(payload) {
+  const data = unwrapItem(payload, {})
+  const page = data.page || data
+  const extra = parseJSON(page.extra_data || page.extraData)
+  const config = extra.consult || extra.marketingConsult || extra.marketing_consult || extra
+  const demandOptions = Array.isArray(config.demandOptions)
+    ? config.demandOptions
+    : Array.isArray(config.demand_options)
+      ? config.demand_options
+      : defaultConsultContent.demandOptions
+
+  return {
+    ...defaultConsultContent,
+    ...config,
+    title: config.title || page.title || defaultConsultContent.title,
+    description: config.description || config.desc || plainText(page.content) || defaultConsultContent.description,
+    demandPlaceholder: config.demandPlaceholder || config.demand_placeholder || defaultConsultContent.demandPlaceholder,
+    demandOptions,
+    submitText: config.submitText || config.submit_text || defaultConsultContent.submitText,
+    submittingText: config.submittingText || config.submitting_text || defaultConsultContent.submittingText,
+    successText: config.successText || config.success_text || defaultConsultContent.successText,
+    errorText: config.errorText || config.error_text || defaultConsultContent.errorText,
+  }
+}
+
 async function request(path, options = {}) {
   const response = await fetch(endpoint(path), {
     headers: {
@@ -116,9 +166,11 @@ export function getHomeContent() {
         request('/api/public/site').catch(() => null),
         request('/api/public/banner').catch(() => null),
       ])
+      const bannerItems = unwrapList(bannerPayload, [])
       return normalizeHomeContent({
         site: unwrapItem(sitePayload, {}),
-        banner: unwrapItem(bannerPayload, {}),
+        banner: bannerItems.length ? {} : unwrapItem(bannerPayload, {}),
+        banners: bannerItems,
       })
     },
     normalizeHomeContent({})
@@ -183,6 +235,13 @@ export function getPartnerContent() {
   return withFallback(
     async () => unwrapItem(await request('/api/partner'), { faqs: [] }),
     { faqs: [] }
+  )
+}
+
+export function getConsultContent() {
+  return withFallback(
+    async () => normalizeConsultContent(await request('/api/partner')),
+    defaultConsultContent
   )
 }
 

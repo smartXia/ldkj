@@ -15,8 +15,6 @@ type mysqlStore struct {
 	db *sql.DB
 }
 
-const serviceSelectColumns = `id, title, slug, COALESCE(subtitle, ''), COALESCE(summary, ''), COALESCE(cover_url, ''), COALESCE(icon_url, ''), COALESCE(content, ''), COALESCE(highlights, ''), COALESCE(process_steps, ''), sort_order, status, created_at, updated_at`
-
 func NewMySQLStore(db *sql.DB) Store {
 	return &mysqlStore{db: db}
 }
@@ -152,7 +150,7 @@ func (s *mysqlStore) UpdateBanner(ctx context.Context, id int64, item Banner) (B
 		res, err = s.db.ExecContext(ctx, `UPDATE banners SET title=?, subtitle=?, image_url=?, link_url=?, button_text=?, is_published=? WHERE id=?`,
 			item.Title, item.Subtitle, item.ImageURL, item.LinkURL, item.ButtonText, item.IsPublished, id)
 	}
-	if err := checkRows(res, err, "banner not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "banners", id, "banner not found"); err != nil {
 		return Banner{}, err
 	}
 	return s.GetBannerByID(ctx, id)
@@ -250,7 +248,7 @@ func (s *mysqlStore) ListServices(ctx context.Context, opts ListOptions) (ListRe
 		return ListResult[Service]{}, err
 	}
 	args = append(args, opts.PageSize, offset(opts))
-	rows, err := s.db.QueryContext(ctx, `SELECT `+serviceSelectColumns+` FROM services `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+serviceSelectColumns(s.columnExists(ctx, "services", "process_steps"))+` FROM services `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
 	if err != nil {
 		return ListResult[Service]{}, err
 	}
@@ -274,7 +272,7 @@ func (s *mysqlStore) GetService(ctx context.Context, key string, includeDraft bo
 		args = append(args, "published")
 	}
 	var item Service
-	err := s.db.QueryRowContext(ctx, `SELECT `+serviceSelectColumns+` FROM services WHERE `+where+` LIMIT 1`, args...).Scan(
+	err := s.db.QueryRowContext(ctx, `SELECT `+serviceSelectColumns(s.columnExists(ctx, "services", "process_steps"))+` FROM services WHERE `+where+` LIMIT 1`, args...).Scan(
 		&item.ID, &item.Title, &item.Slug, &item.Subtitle, &item.Summary, &item.CoverURL, &item.IconURL, &item.Content, &item.HighlightText, &item.ProcessText, &item.SortOrder, &item.Status, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Service{}, notFound("service not found")
@@ -297,7 +295,7 @@ func (s *mysqlStore) UpdateService(ctx context.Context, id int64, item Service) 
 	item = normalizeService(item)
 	res, err := s.db.ExecContext(ctx, `UPDATE services SET title=?, slug=?, subtitle=?, summary=?, cover_url=?, icon_url=?, content=?, highlights=?, process_steps=?, sort_order=?, status=? WHERE id=?`,
 		item.Title, item.Slug, item.Subtitle, item.Summary, item.CoverURL, item.IconURL, item.Content, item.HighlightText, item.ProcessText, item.SortOrder, item.Status, id)
-	if err := checkRows(res, err, "service not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "services", id, "service not found"); err != nil {
 		return Service{}, err
 	}
 	return s.GetService(ctx, strconv.FormatInt(id, 10), true)
@@ -360,7 +358,7 @@ func (s *mysqlStore) CreateCase(ctx context.Context, item Case) (Case, error) {
 func (s *mysqlStore) UpdateCase(ctx context.Context, id int64, item Case) (Case, error) {
 	res, err := s.db.ExecContext(ctx, `UPDATE cases SET title=?, slug=?, industry=?, platform=?, strategy=?, cover_url=?, summary=?, content=?, core_metrics=?, status=? WHERE id=?`,
 		item.Title, item.Slug, item.Industry, item.Platform, item.Strategy, item.CoverURL, item.Summary, item.Content, item.CoreMetrics, item.Status, id)
-	if err := checkRows(res, err, "case not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "cases", id, "case not found"); err != nil {
 		return Case{}, err
 	}
 	return s.GetCase(ctx, strconv.FormatInt(id, 10), true)
@@ -423,7 +421,7 @@ func (s *mysqlStore) CreateNews(ctx context.Context, item News) (News, error) {
 func (s *mysqlStore) UpdateNews(ctx context.Context, id int64, item News) (News, error) {
 	res, err := s.db.ExecContext(ctx, `UPDATE news SET title=?, slug=?, category=?, cover_url=?, summary=?, content=?, status=?, published_at=? WHERE id=?`,
 		item.Title, item.Slug, item.Category, item.CoverURL, item.Summary, item.Content, item.Status, item.PublishedAt, id)
-	if err := checkRows(res, err, "news not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "news", id, "news not found"); err != nil {
 		return News{}, err
 	}
 	return s.GetNews(ctx, strconv.FormatInt(id, 10), true)
@@ -474,7 +472,7 @@ func (s *mysqlStore) ListForms(ctx context.Context, opts ListOptions) (ListResul
 
 func (s *mysqlStore) UpdateFormStatus(ctx context.Context, id int64, status string) (LeadForm, error) {
 	res, err := s.db.ExecContext(ctx, `UPDATE lead_forms SET status = ? WHERE id = ?`, status, id)
-	if err := checkRows(res, err, "form not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "lead_forms", id, "form not found"); err != nil {
 		return LeadForm{}, err
 	}
 	return s.getForm(ctx, id)
@@ -544,7 +542,7 @@ func (s *mysqlStore) UpdateStaticPage(ctx context.Context, id int64, item Static
 	item = normalizePage(item)
 	res, err := s.db.ExecContext(ctx, `UPDATE static_pages SET page_key=?, title=?, content=?, extra_data=?, status=? WHERE id=?`,
 		item.PageKey, item.Title, item.Content, item.ExtraData, item.Status, id)
-	if err := checkRows(res, err, "page not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "static_pages", id, "page not found"); err != nil {
 		return StaticPage{}, err
 	}
 	return s.GetStaticPage(ctx, strconv.FormatInt(id, 10), true)
@@ -603,7 +601,7 @@ func (s *mysqlStore) UpdateFAQ(ctx context.Context, id int64, item PartnerFAQ) (
 	item = normalizeFAQ(item)
 	res, err := s.db.ExecContext(ctx, `UPDATE partner_faqs SET question=?, answer=?, sort_order=?, is_published=? WHERE id=?`,
 		item.Question, item.Answer, item.SortOrder, item.IsPublished, id)
-	if err := checkRows(res, err, "faq not found"); err != nil {
+	if err := s.checkUpdateRows(ctx, res, err, "partner_faqs", id, "faq not found"); err != nil {
 		return PartnerFAQ{}, err
 	}
 	return s.GetFAQ(ctx, id)
@@ -707,6 +705,14 @@ func (s *mysqlStore) columnExists(ctx context.Context, table, column string) boo
 	var total int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column).Scan(&total)
 	return err == nil && total > 0
+}
+
+func serviceSelectColumns(hasProcessSteps bool) string {
+	processSteps := "''"
+	if hasProcessSteps {
+		processSteps = "COALESCE(process_steps, '')"
+	}
+	return "id, title, slug, COALESCE(subtitle, ''), COALESCE(summary, ''), COALESCE(cover_url, ''), COALESCE(icon_url, ''), COALESCE(content, ''), COALESCE(highlights, ''), " + processSteps + ", sort_order, status, created_at, updated_at"
 }
 
 func bannerSelectColumns(hasPosition, hasSort bool) string {
@@ -853,6 +859,28 @@ func checkRows(res sql.Result, err error, message string) error {
 		return err
 	}
 	if n == 0 {
+		return notFound(message)
+	}
+	return nil
+}
+
+func (s *mysqlStore) checkUpdateRows(ctx context.Context, res sql.Result, err error, table string, id int64, message string) error {
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE id = ?", table), id).Scan(&total); err != nil {
+		return err
+	}
+	if total == 0 {
 		return notFound(message)
 	}
 	return nil

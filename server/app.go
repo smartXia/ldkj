@@ -103,7 +103,7 @@ func (a *App) publicBanner(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
-	respond(w, must(a.store.GetBanner(r.Context())))
+	respond(w, must(a.store.ListBanners(r.Context(), ListOptions{Page: 1, PageSize: 20, Status: "enabled"})))
 }
 
 func (a *App) publicServices(w http.ResponseWriter, r *http.Request) {

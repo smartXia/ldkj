@@ -53,15 +53,36 @@
 }
 
 .admin-nav a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   border-radius: 6px;
   color: #c6cfda;
   padding: 9px 10px;
+  text-decoration: none;
 }
 
 .admin-nav a.active,
 .admin-nav a:hover {
   background: #263241;
   color: #ffffff;
+}
+
+.admin-nav-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  opacity: 0.82;
+}
+
+.admin-nav a.active .admin-nav-icon,
+.admin-nav a:hover .admin-nav-icon {
+  opacity: 1;
 }
 
 .admin-workspace {

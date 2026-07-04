@@ -1,10 +1,10 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue'
-import { submitPublicForm } from '../../services/publicApi'
+import { getConsultContent, submitPublicForm } from '../../services/publicApi'
 
 const emit = defineEmits(['close'])
 
-const demandOptions = ['整合营销', '新品推广', '电商大促', '社交种草', '账号运营', '舆情优化', '其他']
+const defaultDemandOptions = ['整合营销', '新品推广', '电商大促', '社交种草', '账号运营', '舆情优化', '其他']
 const form = reactive({
   name: '',
   phone: '',
@@ -14,8 +14,10 @@ const form = reactive({
 const dropdownOpen = shallowRef(false)
 const status = shallowRef('idle')
 const errorMessage = shallowRef('')
+const consultContent = shallowRef(null)
 
-const demandLabel = computed(() => form.demand || '请选择营销诉求')
+const demandOptions = computed(() => consultContent.value?.demandOptions?.length ? consultContent.value.demandOptions : defaultDemandOptions)
+const demandLabel = computed(() => form.demand || consultContent.value?.demandPlaceholder || '请选择营销诉求')
 const isSubmitting = computed(() => status.value === 'submitting')
 
 function close() {
@@ -65,7 +67,7 @@ async function submitForm() {
     resetForm()
   } catch (error) {
     status.value = 'error'
-    errorMessage.value = '提交失败，请稍后再试或直接联系我们。'
+    errorMessage.value = consultContent.value?.errorText || '提交失败，请稍后再试或直接联系我们。'
   }
 }
 
@@ -84,10 +86,11 @@ function handleKeydown(event) {
   close()
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.body.classList.add('modal-open')
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('click', closeDropdown)
+  consultContent.value = await getConsultContent()
 })
 
 onBeforeUnmount(() => {
@@ -100,13 +103,13 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div class="consult-modal" role="dialog" aria-modal="true" aria-labelledby="consult-title">
-      <button class="consult-backdrop" type="button" aria-label="关闭营销咨询" @click="close"></button>
+      <button class="consult-backdrop" type="button" aria-label="鍏抽棴钀ラ攢鍜ㄨ" @click="close"></button>
 
       <section class="consult-dialog">
-        <button class="consult-close" type="button" aria-label="关闭" @click="close"></button>
+        <button class="consult-close" type="button" aria-label="鍏抽棴" @click="close"></button>
 
         <div class="consult-right">
-          <h2 id="consult-title">预约咨询</h2>
+          <h2 id="consult-title">{{ consultContent?.title || '预约咨询' }}</h2>
           <form class="consult-form" novalidate @submit.prevent="submitForm">
             <label>
               <span class="field-label">姓名</span>
@@ -124,7 +127,7 @@ onBeforeUnmount(() => {
             </label>
 
             <label class="demand-field" @click.stop>
-              <span class="field-label">营销述求</span>
+              <span class="field-label">营销诉求</span>
               <button class="select-trigger" type="button" :class="{ muted: !form.demand }" :disabled="isSubmitting" @click="dropdownOpen = !dropdownOpen">
                 {{ demandLabel }}
                 <i aria-hidden="true"></i>
@@ -137,9 +140,9 @@ onBeforeUnmount(() => {
             </label>
 
             <button class="submit-button" type="submit" :disabled="isSubmitting">
-              {{ isSubmitting ? '提交中...' : '立即预约' }}
+              {{ isSubmitting ? (consultContent?.submittingText || '提交中...') : (consultContent?.submitText || '立即预约') }}
             </button>
-            <p v-if="status === 'success'" class="submit-tip success" role="status">预约信息已提交，我们会尽快与您联系。</p>
+            <p v-if="status === 'success'" class="submit-tip success" role="status">{{ consultContent?.successText || '预约信息已提交，我们会尽快与您联系。' }}</p>
             <p v-else-if="status === 'error'" class="submit-tip error" role="alert">{{ errorMessage }}</p>
           </form>
         </div>
@@ -473,3 +476,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
