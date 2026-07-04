@@ -450,6 +450,13 @@
   gap: 8px;
 }
 
+.admin-upload-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .admin-upload-row {
   display: flex;
   gap: 8px;
@@ -471,6 +478,117 @@
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid #dfe4ea;
+}
+
+.admin-crop-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 24, 39, 0.58);
+}
+
+.admin-crop-panel {
+  width: min(720px, 100%);
+  border: 1px solid #dfe4ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(16, 24, 39, 0.28);
+  overflow: hidden;
+}
+
+.admin-crop-header,
+.admin-crop-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.admin-crop-header {
+  border-bottom: 1px solid #e8ecf1;
+}
+
+.admin-crop-header strong,
+.admin-crop-header span {
+  display: block;
+}
+
+.admin-crop-header strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.admin-crop-header span,
+.admin-crop-tools span {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-crop-viewport {
+  position: relative;
+  width: calc(100% - 32px);
+  max-height: 520px;
+  margin: 16px;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  background: #101827;
+}
+
+.admin-crop-viewport:active {
+  cursor: grabbing;
+}
+
+.admin-crop-viewport img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+.admin-crop-grid {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  background:
+    linear-gradient(to right, transparent 33.333%, rgba(255, 255, 255, 0.45) 33.333%, rgba(255, 255, 255, 0.45) 33.7%, transparent 33.7%, transparent 66.666%, rgba(255, 255, 255, 0.45) 66.666%, rgba(255, 255, 255, 0.45) 67%, transparent 67%),
+    linear-gradient(to bottom, transparent 33.333%, rgba(255, 255, 255, 0.45) 33.333%, rgba(255, 255, 255, 0.45) 33.7%, transparent 33.7%, transparent 66.666%, rgba(255, 255, 255, 0.45) 66.666%, rgba(255, 255, 255, 0.45) 67%, transparent 67%);
+  pointer-events: none;
+}
+
+.admin-crop-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 16px 14px;
+}
+
+.admin-crop-tools label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.admin-crop-tools input {
+  flex: 1;
+}
+
+.admin-crop-actions {
+  justify-content: flex-end;
+  border-top: 1px solid #e8ecf1;
 }
 
 @media (max-width: 860px) {
@@ -506,5 +624,20 @@
   .admin-topbar-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .admin-crop-modal {
+    padding: 12px;
+  }
+
+  .admin-crop-header,
+  .admin-crop-tools,
+  .admin-crop-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-crop-actions .admin-button {
+    width: 100%;
   }
 }

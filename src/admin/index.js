@@ -1,5 +1,3 @@
-export { default as UploadField } from './components/UploadField.vue'
-
 export const adminRoutes = [
   {
     path: '/admin/login',
