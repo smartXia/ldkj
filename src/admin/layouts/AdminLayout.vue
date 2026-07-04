@@ -9,9 +9,12 @@ const router = useRouter()
 
 const navItems = [
   { label: '仪表盘', path: '/admin' },
+  { label: '服务', path: '/admin/services' },
   { label: '案例', path: '/admin/cases' },
   { label: '资讯', path: '/admin/news' },
   { label: 'Banner', path: '/admin/banners' },
+  { label: '页面', path: '/admin/pages' },
+  { label: 'FAQ', path: '/admin/faqs' },
   { label: '表单', path: '/admin/forms' },
   { label: '站点', path: '/admin/site' },
   { label: 'SEO', path: '/admin/seo' },

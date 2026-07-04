@@ -1,19 +1,22 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/oss': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+export default defineConfig(() => {
+  const backendTarget = process.env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:8080'
+
+  return {
+    plugins: [vue()],
+    server: {
+      proxy: {
+        '/api': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/oss': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
-  },
+  }
 })

@@ -47,8 +47,13 @@ function fieldAliases(key) {
     createdAt: ['created_at'],
     cover: ['cover_url', 'image'],
     image: ['cover_url', 'cover'],
+    icon: ['icon_url'],
     playbook: ['strategy', 'method'],
     metrics: ['core_metrics'],
+    highlights: ['highlight_text'],
+    process: ['process_text'],
+    sort: ['sort_order'],
+    pageKey: ['page_key', 'page'],
   }
   return [key, ...(aliases[key] || [])]
 }
@@ -70,8 +75,13 @@ function applyCanonicalAliases(payload) {
   const aliasTargets = {
     cover: ['cover_url', 'image'],
     image: ['cover_url', 'cover'],
+    icon: ['icon_url'],
     playbook: ['strategy', 'method'],
     metrics: ['core_metrics'],
+    highlights: ['highlight_text'],
+    process: ['process_text'],
+    sort: ['sort_order'],
+    pageKey: ['page_key', 'page'],
     publishedAt: ['published_at', 'date'],
   }
 
