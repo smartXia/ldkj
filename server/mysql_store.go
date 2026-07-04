@@ -59,7 +59,7 @@ func (s *mysqlStore) GetBanner(ctx context.Context) (Banner, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return Banner{}, notFound("banner not found")
 	}
-	return b, err
+	return normalizeBanner(b), err
 }
 
 func (s *mysqlStore) SaveBanner(ctx context.Context, b Banner) (Banner, error) {
@@ -80,6 +80,7 @@ func (s *mysqlStore) GetSEO(ctx context.Context, page string) (SEOSetting, error
 	if errors.Is(err, sql.ErrNoRows) {
 		return SEOSetting{}, notFound("SEO setting not found")
 	}
+	seo.Page = seo.PageKey
 	return seo, err
 }
 
@@ -92,6 +93,89 @@ ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description)
 		return SEOSetting{}, err
 	}
 	return s.GetSEO(ctx, seo.PageKey)
+}
+
+func (s *mysqlStore) ListSEO(ctx context.Context) ([]SEOSetting, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, page_key, title, description, keywords, updated_at FROM seo_settings ORDER BY id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SEOSetting{}
+	for rows.Next() {
+		var item SEOSetting
+		if err := rows.Scan(&item.ID, &item.PageKey, &item.Title, &item.Description, &item.Keywords, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		item.Page = item.PageKey
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *mysqlStore) ListServices(ctx context.Context, opts ListOptions) (ListResult[Service], error) {
+	where, args := serviceWhere(opts)
+	total, err := s.count(ctx, "services", where, args)
+	if err != nil {
+		return ListResult[Service]{}, err
+	}
+	args = append(args, opts.PageSize, offset(opts))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, title, slug, subtitle, summary, cover_url, icon_url, content, highlights, process_steps, sort_order, status, created_at, updated_at FROM services `+where+` ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return ListResult[Service]{}, err
+	}
+	defer rows.Close()
+	items := []Service{}
+	for rows.Next() {
+		var item Service
+		if err := rows.Scan(&item.ID, &item.Title, &item.Slug, &item.Subtitle, &item.Summary, &item.CoverURL, &item.IconURL, &item.Content, &item.HighlightText, &item.ProcessText, &item.SortOrder, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return ListResult[Service]{}, err
+		}
+		items = append(items, normalizeService(item))
+	}
+	return ListResult[Service]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
+}
+
+func (s *mysqlStore) GetService(ctx context.Context, key string, includeDraft bool) (Service, error) {
+	where := `(id = ? OR slug = ?)`
+	args := []any{numericKey(key), key}
+	if !includeDraft {
+		where += ` AND status = ?`
+		args = append(args, "published")
+	}
+	var item Service
+	err := s.db.QueryRowContext(ctx, `SELECT id, title, slug, subtitle, summary, cover_url, icon_url, content, highlights, process_steps, sort_order, status, created_at, updated_at FROM services WHERE `+where+` LIMIT 1`, args...).Scan(
+		&item.ID, &item.Title, &item.Slug, &item.Subtitle, &item.Summary, &item.CoverURL, &item.IconURL, &item.Content, &item.HighlightText, &item.ProcessText, &item.SortOrder, &item.Status, &item.CreatedAt, &item.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Service{}, notFound("service not found")
+	}
+	return normalizeService(item), err
+}
+
+func (s *mysqlStore) CreateService(ctx context.Context, item Service) (Service, error) {
+	item = normalizeService(item)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO services (title, slug, subtitle, summary, cover_url, icon_url, content, highlights, process_steps, sort_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.Title, item.Slug, item.Subtitle, item.Summary, item.CoverURL, item.IconURL, item.Content, item.HighlightText, item.ProcessText, item.SortOrder, item.Status)
+	if err != nil {
+		return Service{}, err
+	}
+	id, _ := res.LastInsertId()
+	return s.GetService(ctx, strconv.FormatInt(id, 10), true)
+}
+
+func (s *mysqlStore) UpdateService(ctx context.Context, id int64, item Service) (Service, error) {
+	item = normalizeService(item)
+	res, err := s.db.ExecContext(ctx, `UPDATE services SET title=?, slug=?, subtitle=?, summary=?, cover_url=?, icon_url=?, content=?, highlights=?, process_steps=?, sort_order=?, status=? WHERE id=?`,
+		item.Title, item.Slug, item.Subtitle, item.Summary, item.CoverURL, item.IconURL, item.Content, item.HighlightText, item.ProcessText, item.SortOrder, item.Status, id)
+	if err := checkRows(res, err, "service not found"); err != nil {
+		return Service{}, err
+	}
+	return s.GetService(ctx, strconv.FormatInt(id, 10), true)
+}
+
+func (s *mysqlStore) DeleteService(ctx context.Context, id int64) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM services WHERE id = ?`, id)
+	return checkRows(res, err, "service not found")
 }
 
 func (s *mysqlStore) ListCases(ctx context.Context, opts ListOptions) (ListResult[Case], error) {
