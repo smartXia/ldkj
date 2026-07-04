@@ -4,7 +4,6 @@ import { submitPublicForm } from '../../services/publicApi'
 
 const emit = defineEmits(['close'])
 
-const benefits = ['定制化营销解决方案', '1对1营销顾问快速反馈', '行业报告、神秘礼物，更多惊喜等着你']
 const demandOptions = ['整合营销', '新品推广', '电商大促', '社交种草', '账号运营', '舆情优化', '其他']
 const form = reactive({
   name: '',
@@ -106,25 +105,6 @@ onBeforeUnmount(() => {
       <section class="consult-dialog">
         <button class="consult-close" type="button" aria-label="关闭" @click="close"></button>
 
-        <div class="consult-left">
-          <img class="left-bg" src="/assets/wsd/consulting/side-bg.png" alt="" aria-hidden="true" />
-          <div class="left-content">
-            <img class="consult-logo" src="/assets/wsd/logo.png" alt="微思敦LOGO" />
-            <h2>好品牌 会社交</h2>
-            <p class="left-tip">预约咨询，获取以下信息</p>
-            <ul class="benefit-list">
-              <li v-for="benefit in benefits" :key="benefit">
-                <img src="/assets/wsd/consulting/checked.png" alt="" aria-hidden="true" />
-                <span>{{ benefit }}</span>
-              </li>
-            </ul>
-            <div class="qr-box">
-              <img src="/assets/wsd/consulting/marketing-qrcode.png" alt="微思敦营销顾问微信联系二维码" />
-              <span>直接联系营销顾问</span>
-            </div>
-          </div>
-        </div>
-
         <div class="consult-right">
           <h2 id="consult-title">预约咨询</h2>
           <form class="consult-form" novalidate @submit.prevent="submitForm">
@@ -189,9 +169,8 @@ onBeforeUnmount(() => {
 .consult-dialog {
   position: relative;
   z-index: 1;
-  width: 860px;
-  height: 600px;
-  display: flex;
+  width: 460px;
+  min-height: 500px;
   background: #fff;
 }
 
@@ -315,9 +294,7 @@ onBeforeUnmount(() => {
 }
 
 .consult-right {
-  width: 440px;
-  height: 600px;
-  flex: 0 0 440px;
+  width: 100%;
   padding: 70px 40px 0;
 }
 

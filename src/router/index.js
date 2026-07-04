@@ -48,8 +48,7 @@ const routes = [
   },
   {
     path: '/about',
-    name: 'about',
-    component: () => import('../views/AboutView.vue'),
+    redirect: '/',
   },
   ...adminRoutes,
   {
@@ -90,7 +89,7 @@ const routes = [
   },
   {
     path: '/zh-cn/about',
-    redirect: '/about',
+    redirect: '/',
   },
   {
     path: '/:pathMatch(.*)*',

@@ -1,8 +1,3 @@
-import { caseCards, caseFilterGroups, caseHero } from '../data/caseContent'
-import { messageArticles, messageCategories, messageHero } from '../data/messageContent'
-import { heroSlides, logoList } from '../data/siteContent'
-import { partnerFaqs, publicServices } from '../data/publicContent'
-
 const API_BASE = import.meta.env.VITE_PUBLIC_API_BASE || ''
 const FRONTEND_ASSET_PREFIX = '/assets/'
 
@@ -126,74 +121,68 @@ export function getHomeContent() {
         banner: unwrapItem(bannerPayload, {}),
       })
     },
-    normalizeHomeContent({ heroSlides, logoList })
+    normalizeHomeContent({})
   )
 }
 
 export function getServices() {
   return withFallback(
     async () => normalizeImageList(unwrapList(await request('/api/services'), [])),
-    normalizeImageList(publicServices)
+    []
   )
 }
 
 export function getServiceById(id) {
-  const fallback = publicServices.find((item) => item.id === id) || publicServices[0]
-
   return withFallback(
     async () => normalizeImageItem(unwrapItem(await request(`/api/services/${encodeURIComponent(id)}`), {})),
-    normalizeImageItem(fallback)
+    {}
   )
 }
 
 export function getCases() {
-  const fallback = { hero: caseHero, filters: caseFilterGroups, items: caseCards }
+  const fallback = { hero: {}, filters: [], items: [] }
 
   return withFallback(async () => {
     const payload = await request('/api/public/cases')
     return normalizeCaseListContent({
-      hero: payload?.hero || payload?.data?.hero || caseHero,
-      filters: payload?.filters || payload?.data?.filters || caseFilterGroups,
-      items: unwrapList(payload, caseCards),
+      hero: payload?.hero || payload?.data?.hero || {},
+      filters: payload?.filters || payload?.data?.filters || [],
+      items: unwrapList(payload, []),
     })
   }, normalizeCaseListContent(fallback))
 }
 
 export function getCaseById(id) {
-  const fallback = caseCards.find((item) => item.id === id) || caseCards[0]
-
   return withFallback(
     async () => normalizeImageItem(unwrapItem(await request(`/api/public/cases/${encodeURIComponent(id)}`), {})),
-    normalizeImageItem(fallback)
+    {}
   )
 }
 
 export function getArticles() {
-  const fallback = { hero: messageHero, categories: messageCategories, items: messageArticles }
+  const fallback = { hero: {}, categories: [], items: [] }
 
   return withFallback(async () => {
     const payload = await request('/api/public/news')
     return normalizeArticleListContent({
-      hero: payload?.hero || payload?.data?.hero || messageHero,
-      categories: payload?.categories || payload?.data?.categories || messageCategories,
-      items: unwrapList(payload, messageArticles),
+      hero: payload?.hero || payload?.data?.hero || {},
+      categories: payload?.categories || payload?.data?.categories || [],
+      items: unwrapList(payload, []),
     })
   }, normalizeArticleListContent(fallback))
 }
 
 export function getArticleById(id) {
-  const fallback = messageArticles.find((item) => item.id === id) || messageArticles[0]
-
   return withFallback(
     async () => normalizeImageItem(unwrapItem(await request(`/api/public/news/${encodeURIComponent(id)}`), {})),
-    normalizeImageItem(fallback)
+    {}
   )
 }
 
 export function getPartnerContent() {
   return withFallback(
-    async () => unwrapItem(await request('/api/partner'), { faqs: partnerFaqs }),
-    { faqs: partnerFaqs }
+    async () => unwrapItem(await request('/api/partner'), { faqs: [] }),
+    { faqs: [] }
   )
 }
 

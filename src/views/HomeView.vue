@@ -1,37 +1,28 @@
 <script setup>
 import { onMounted, shallowRef } from 'vue'
 import HeroCarousel from '../components/home/HeroCarousel.vue'
-import MarketingModel from '../components/home/MarketingModel.vue'
-import ServiceSection from '../components/home/ServiceSection.vue'
 import BrandCases from '../components/home/BrandCases.vue'
-import IntroStats from '../components/home/IntroStats.vue'
 import BrandWall from '../components/home/BrandWall.vue'
 import ContactCta from '../components/home/ContactCta.vue'
-import { getCases, getHomeContent, getServices } from '../services/publicApi'
+import { getCases, getHomeContent } from '../services/publicApi'
 
 const emit = defineEmits(['open-consult'])
 const homeContent = shallowRef({ heroSlides: [], logoList: [] })
-const services = shallowRef([])
 const cases = shallowRef([])
 
 onMounted(async () => {
-  const [home, serviceItems, caseContent] = await Promise.all([
+  const [home, caseContent] = await Promise.all([
     getHomeContent(),
-    getServices(),
     getCases(),
   ])
   homeContent.value = home
-  services.value = serviceItems
   cases.value = caseContent.items || []
 })
 </script>
 
 <template>
   <HeroCarousel :slides="homeContent.heroSlides" />
-  <MarketingModel :modules="homeContent.marketingModules" />
-  <ServiceSection :services="services" />
   <BrandCases :cases="cases" />
-  <IntroStats />
   <BrandWall :logos="homeContent.logoList" />
   <ContactCta @open-consult="emit('open-consult')" />
 </template>

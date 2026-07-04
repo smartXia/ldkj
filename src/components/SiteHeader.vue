@@ -15,8 +15,14 @@ const menuOpen = shallowRef(false)
 const languageOpen = shallowRef(false)
 const { languages, currentLanguage, messages, locale, setLanguage } = useI18n()
 
-const routeNavItems = computed(() => messages.value.navItems.filter((item) => item.path))
-const hashNavItems = computed(() => messages.value.navItems.filter((item) => item.href))
+const routeNavItems = computed(() => [
+  { label: '首页', path: '/' },
+  { label: '服务', path: '/service' },
+  { label: '客户案例', path: '/case' },
+  { label: '营销资讯', path: '/message' },
+  { label: '合作咨询', path: '/cooperate' },
+])
+const hashNavItems = computed(() => [])
 
 function isActive(item) {
   return item.path === route.path
@@ -51,7 +57,7 @@ function closeLanguageOnFocusout(event) {
 <template>
   <header class="site-header">
     <div class="header-inner">
-      <RouterLink class="brand" to="/" aria-label="微思敦首页" @click="closeMenu">
+      <RouterLink class="brand" to="/" aria-label="网站首页" @click="closeMenu">
         <img v-if="site.logo" :src="site.logo" :alt="site.site_title || '网站 Logo'" />
         <span v-else>{{ site.site_title || '南京灵动' }}</span>
       </RouterLink>

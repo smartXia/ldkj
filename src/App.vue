@@ -1,7 +1,6 @@
 <script setup>
 import { onMounted, shallowRef } from 'vue'
 import SiteHeader from './components/SiteHeader.vue'
-import FloatingContact from './components/home/FloatingContact.vue'
 import FooterSection from './components/home/FooterSection.vue'
 import MarketingConsultDialog from './components/consulting/MarketingConsultDialog.vue'
 import { getHomeContent } from './services/publicApi'
@@ -27,7 +26,6 @@ onMounted(async () => {
   <main>
     <RouterView @open-consult="openConsulting" />
   </main>
-  <FloatingContact @open-consult="openConsulting" />
-  <FooterSection />
+  <FooterSection :site="siteConfig.site" />
   <MarketingConsultDialog v-if="consultingOpen" @close="closeConsulting" />
 </template>
