@@ -1,8 +1,15 @@
 <script setup>
 import { computed, shallowRef } from 'vue'
 
+const props = defineProps({
+  honors: {
+    type: Object,
+    default: null,
+  },
+})
+
 const tabs = ['行业奖项', '媒体奖项', '企业认证']
-const activeTab = shallowRef(tabs[0])
+const activeTab = shallowRef('')
 const activeHonorIndex = shallowRef(-1)
 
 const honorGroups = {
@@ -74,7 +81,10 @@ const honorGroups = {
   ],
 }
 
-const visibleHonors = computed(() => honorGroups[activeTab.value])
+const tabItems = computed(() => props.honors?.tabs?.length ? props.honors.tabs : tabs)
+const honorGroupItems = computed(() => props.honors?.groups || honorGroups)
+const currentTab = computed(() => activeTab.value || tabItems.value[0])
+const visibleHonors = computed(() => honorGroupItems.value[currentTab.value] || [])
 
 function changeTab(tab) {
   activeTab.value = tab
@@ -87,10 +97,10 @@ function changeTab(tab) {
     <h2>企业荣誉</h2>
     <div class="honor-tabs" aria-label="荣誉分类">
       <button
-        v-for="tab in tabs"
+        v-for="tab in tabItems"
         :key="tab"
         type="button"
-        :class="{ active: tab === activeTab }"
+        :class="{ active: tab === currentTab }"
         @click="changeTab(tab)"
       >
         {{ tab }}

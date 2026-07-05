@@ -20,6 +20,8 @@ const routeNavItems = computed(() => [
   { label: '服务', path: '/service' },
   { label: '客户案例', path: '/case' },
   { label: '营销资讯', path: '/message' },
+  { label: 'FAQ', path: '/faq' },
+  { label: '关于我们', path: '/about' },
   { label: '合作咨询', path: '/cooperate' },
 ])
 const hashNavItems = computed(() => [])

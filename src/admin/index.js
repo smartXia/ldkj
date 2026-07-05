@@ -14,6 +14,7 @@ export const adminRoutes = [
       { path: 'news', name: 'admin-news', component: () => import('./pages/NewsView.vue') },
       { path: 'banners', name: 'admin-banners', component: () => import('./pages/BannersView.vue') },
       { path: 'pages', name: 'admin-pages', component: () => import('./pages/PagesView.vue') },
+      { path: 'about', name: 'admin-about', component: () => import('./pages/AboutPageView.vue') },
       { path: 'faqs', name: 'admin-faqs', component: () => import('./pages/FAQsView.vue') },
       { path: 'forms', name: 'admin-forms', component: () => import('./pages/FormsView.vue') },
       { path: 'site', name: 'admin-site', component: () => import('./pages/SiteSettingsView.vue') },

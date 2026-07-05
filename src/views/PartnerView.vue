@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, reactive, shallowRef } from 'vue'
-import { getPartnerContent, submitPublicForm } from '../services/publicApi'
+import { reactive, shallowRef } from 'vue'
+import { submitPublicForm } from '../services/publicApi'
 
 const form = reactive({
   name: '',
@@ -10,8 +10,6 @@ const form = reactive({
   email: '',
   demand: '',
 })
-const faqs = shallowRef([])
-const openedFaqs = shallowRef(new Set([0]))
 const status = shallowRef('idle')
 const errorMessage = shallowRef('')
 
@@ -20,13 +18,6 @@ function validateForm() {
   if (!form.company.trim()) return '请填写公司名称'
   if (!form.phone.trim()) return '请填写联系电话'
   return ''
-}
-
-function toggleFaq(index) {
-  const next = new Set(openedFaqs.value)
-  if (next.has(index)) next.delete(index)
-  else next.add(index)
-  openedFaqs.value = next
 }
 
 function resetForm() {
@@ -63,10 +54,6 @@ async function submitForm() {
   }
 }
 
-onMounted(async () => {
-  const data = await getPartnerContent()
-  faqs.value = data.faqs
-})
 </script>
 
 <template>
@@ -120,16 +107,7 @@ onMounted(async () => {
           <li>策略方案</li>
           <li>项目启动</li>
         </ol>
-        <h2>FAQ</h2>
-        <div class="faq-list">
-          <article v-for="(item, index) in faqs" :key="item.question">
-            <button type="button" @click="toggleFaq(index)">
-              {{ item.question }}
-              <span>{{ openedFaqs.has(index) ? '-' : '+' }}</span>
-            </button>
-            <p v-if="openedFaqs.has(index)">{{ item.answer }}</p>
-          </article>
-        </div>
+        <RouterLink class="faq-entry" to="/faq">查看常见问题</RouterLink>
       </aside>
     </div>
   </section>
@@ -256,33 +234,17 @@ onMounted(async () => {
   line-height: 2;
 }
 
-.faq-list article {
-  border-top: 1px solid #eee;
-  padding: 16px 0;
-}
-
-.faq-list button {
-  width: 100%;
-  border: 0;
-  padding: 0;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  background: transparent;
-  color: #111;
-  font: inherit;
+.faq-entry {
+  width: max-content;
+  min-height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  background: #ff4848;
+  color: #fff;
   font-weight: 700;
-  text-align: left;
-}
-
-.faq-list button span {
-  flex: 0 0 auto;
-}
-
-.faq-list p {
-  margin: 12px 0 0;
-  color: #666;
-  line-height: 1.7;
 }
 
 @media (max-width: 860px) {

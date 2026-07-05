@@ -47,8 +47,14 @@ const routes = [
     component: () => import('../views/MessageDetailView.vue'),
   },
   {
+    path: '/faq',
+    name: 'faq',
+    component: () => import('../views/FAQView.vue'),
+  },
+  {
     path: '/about',
-    redirect: '/',
+    name: 'about',
+    component: () => import('../views/AboutView.vue'),
   },
   ...adminRoutes,
   {
@@ -88,8 +94,12 @@ const routes = [
     redirect: (to) => `/message/${to.params.id}`,
   },
   {
+    path: '/zh-cn/faq',
+    redirect: '/faq',
+  },
+  {
     path: '/zh-cn/about',
-    redirect: '/',
+    redirect: '/about',
   },
   {
     path: '/:pathMatch(.*)*',

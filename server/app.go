@@ -48,6 +48,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("/api/services", a.publicServices)
 	a.mux.HandleFunc("/api/services/", a.publicServiceDetail)
 	a.mux.HandleFunc("/api/partner", a.publicPartner)
+	a.mux.HandleFunc("/api/public/about", a.publicAbout)
 	a.mux.HandleFunc("/api/public/cases", a.publicCases)
 	a.mux.HandleFunc("/api/public/cases/", a.publicCaseDetail)
 	a.mux.HandleFunc("/api/public/news", a.publicNews)
@@ -143,6 +144,14 @@ func (a *App) publicPartner(w http.ResponseWriter, r *http.Request) {
 		"page": page,
 		"faqs": faqs.Items,
 	})
+}
+
+func (a *App) publicAbout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	respond(w, must(a.store.GetStaticPage(r.Context(), "about", false)))
 }
 
 func (a *App) publicCases(w http.ResponseWriter, r *http.Request) {

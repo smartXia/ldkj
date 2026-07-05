@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import AboutAnchorNav from '../components/about/AboutAnchorNav.vue'
 import AboutBrands from '../components/about/AboutBrands.vue'
 import AboutHero from '../components/about/AboutHero.vue'
@@ -8,19 +9,25 @@ import AboutIntro from '../components/about/AboutIntro.vue'
 import AboutTeam from '../components/about/AboutTeam.vue'
 import AboutValues from '../components/about/AboutValues.vue'
 import { useI18n } from '../composables/useI18n'
+import { getAboutContent } from '../services/publicApi'
 
 const { messages } = useI18n()
+const aboutContent = ref(messages.value.about)
+
+onMounted(async () => {
+  aboutContent.value = await getAboutContent(messages.value.about)
+})
 </script>
 
 <template>
-  <AboutHero :content="messages.about.hero" />
-  <AboutAnchorNav :items="messages.about.anchors" />
-  <AboutIntro :intro="messages.about.intro" :meanings="messages.about.meanings" />
-  <AboutValues :title="messages.about.valuesTitle" :values="messages.about.values" />
-  <AboutHistory :content="messages.about.history" />
-  <AboutHonors />
-  <AboutBrands :brands="messages.about.brands" />
-  <AboutTeam :title="messages.about.teamTitle" />
+  <AboutHero :content="aboutContent.hero" />
+  <AboutAnchorNav :items="aboutContent.anchors" />
+  <AboutIntro :intro="aboutContent.intro" :meanings="aboutContent.meanings" />
+  <AboutValues :title="aboutContent.valuesTitle" :values="aboutContent.values" />
+  <AboutHistory :content="aboutContent.history" />
+  <AboutHonors :honors="aboutContent.honors" />
+  <AboutBrands :brands="aboutContent.brands" />
+  <AboutTeam :title="aboutContent.teamTitle" />
 </template>
 
 <style scoped>

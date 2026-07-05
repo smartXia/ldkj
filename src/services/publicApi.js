@@ -31,6 +31,7 @@ function normalizeImageItem(item) {
   const image = backendImage(item.image || item.image_url || item.cover_url || item.cover)
   const detailImage = backendImage(item.detailImage || item.detail_image || item.detail_url)
   const logo = backendImage(item.logo || item.logo_url)
+  const icon = backendImage(item.icon || item.icon_url)
   return {
     ...item,
     image,
@@ -40,6 +41,8 @@ function normalizeImageItem(item) {
     detailImage,
     logo,
     logo_url: logo,
+    icon,
+    icon_url: icon,
   }
 }
 
@@ -162,6 +165,42 @@ function normalizeConsultContent(payload) {
   }
 }
 
+function mergeContent(base, override) {
+  if (Array.isArray(override)) return override.length ? override : base
+  if (!override || typeof override !== 'object') return override || base
+  const merged = { ...(base && typeof base === 'object' && !Array.isArray(base) ? base : {}) }
+  Object.entries(override).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      if (value.length) merged[key] = value
+      return
+    }
+    if (value && typeof value === 'object') {
+      merged[key] = mergeContent(merged[key], value)
+      return
+    }
+    if (value !== undefined && value !== null && value !== '') merged[key] = value
+  })
+  return merged
+}
+
+function normalizeAboutContent(payload, fallback = {}) {
+  const data = unwrapItem(payload, {})
+  const page = data.page || data
+  const extra = parseJSON(page.extra_data || page.extraData)
+  const config = extra.about || extra
+  const about = mergeContent(fallback, config)
+
+  return {
+    ...about,
+    hero: normalizeImageItem(about.hero),
+    intro: normalizeImageItem(about.intro),
+    meanings: normalizeImageList(about.meanings),
+    values: normalizeImageList(about.values),
+    history: normalizeImageItem(about.history),
+    brands: normalizeImageList(about.brands),
+  }
+}
+
 async function request(path, options = {}) {
   const response = await fetch(endpoint(path), {
     headers: {
@@ -280,6 +319,13 @@ export function getConsultContent() {
   return withFallback(
     async () => normalizeConsultContent(await request('/api/partner')),
     defaultConsultContent
+  )
+}
+
+export function getAboutContent(fallback) {
+  return withFallback(
+    async () => normalizeAboutContent(await request('/api/public/about'), fallback),
+    fallback
   )
 }
 

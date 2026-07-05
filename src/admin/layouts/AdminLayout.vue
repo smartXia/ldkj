@@ -14,6 +14,7 @@ const navItems = [
   { label: '资讯', path: '/admin/news', icon: 'news' },
   { label: 'Banner', path: '/admin/banners', icon: 'banner' },
   { label: '页面', path: '/admin/pages', icon: 'pages' },
+  { label: '关于我们', path: '/admin/about', icon: 'pages' },
   { label: 'FAQ', path: '/admin/faqs', icon: 'faq' },
   { label: '表单', path: '/admin/forms', icon: 'forms' },
   { label: '站点', path: '/admin/site', icon: 'site' },

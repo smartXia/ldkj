@@ -1,839 +1,445 @@
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import SectionHeading from './SectionHeading.vue'
 
-const props = defineProps({
+defineProps({
   services: {
     type: Array,
     default: () => [],
   },
 })
 
-const tabs = ['社媒广告', '达人内容', '营销培训', '社交电商', '口碑管理', '营销技术']
-const activeIndex = shallowRef(0)
-const sectionRef = shallowRef(null)
-const videoRef = shallowRef(null)
-const visible = shallowRef(false)
-let observer
+const caseImage = '/assets/wsd/case-01.png'
 
-const platformCards = [
-  { name: '微信', desc: '全域经营', className: 'wechat' },
-  { name: '微博', desc: '流量曝光', className: 'weibo' },
-  { name: '小红书', desc: '场景种草', className: 'redbook' },
-  { name: '哔哩哔哩', desc: '年轻潮流', className: 'bilibili' },
-  { name: '知乎', desc: '信任背书', className: 'zhihu' }
-]
-
-const platformLogos = [
-  { name: 'f', className: 'facebook' },
-  { name: '◎', className: 'instagram' },
-  { name: '𝕏', className: 'x' },
-  { name: 'in', className: 'linkedin' },
-  { name: 'r', className: 'reddit' },
-  { name: 'S', className: 'snapchat' },
-  { name: 'p', className: 'pinterest' },
-  { name: '...', className: 'more' }
-]
-
-const trainingItems = [
+const serviceCards = [
+  {
+    title: '新品/爆品打造',
+    desc: '通过新品营销将产品打造成为电商热卖爆款',
+    featured: true,
+  },
+  {
+    title: '种草全域转化',
+    desc: '通过社交内容种草，对全渠道生意产生积极影响',
+  },
+  {
+    title: 'TOP1赛道抢占',
+    desc: '通过精准的营销策略，成功登顶赛道的TOP1地位',
+  },
+  {
+    title: '线索获取',
+    desc: '通过精准识别并打动意向用户，获取生意线索',
+  },
+  {
+    title: '直播电商',
+    desc: '通过私域直播经营，实现站内电商转化',
+  },
   {
     title: '品牌社媒运营',
-    desc: '品牌号/品牌矩阵账号运营培训\n助力声量与销量双丰收',
-    icon: 'doc'
+    desc: '通过社交平台账号运营，提升品牌知名度和用户好感度',
   },
   {
-    title: '社交电商运营',
-    desc: '品牌小红书电商直播培训\n轻松实现种销一体',
-    icon: 'shop'
+    title: '社交营销培训',
+    desc: '通过系统化的营销培训，解锁社交营销新玩法',
   },
   {
-    title: '品牌KOS营销',
-    desc: 'KOS号/门店账号运营培训\n帮助门店获得生意结果',
-    icon: 'grid'
+    title: '事件营销',
+    desc: '通过打造或参与有影响力事件进行的营销活动',
   },
-  {
-    title: '社交广告运营',
-    desc: '营销投放技能培训\n精准覆盖提高转化效果',
-    icon: 'gear'
-  }
 ]
-
-const trainingPlatforms = [
-  { label: '微信', className: 'wechat' },
-  { label: '微博', className: 'weibo' },
-  { label: '小红书', className: 'redbook' },
-  { label: '哔哩', className: 'bilibili' },
-  { label: '知乎', className: 'zhihu' }
-]
-
-const serviceItems = computed(() => props.services)
-const activeService = computed(() => serviceItems.value[activeIndex.value] || {})
-const videoSrc = computed(() => '')
-const isAdPanel = computed(() => activeIndex.value === 0)
-const isTrainingPanel = computed(() => activeIndex.value === 2)
-
-function setActive(index) {
-  activeIndex.value = index
-}
-
-async function playCurrentVideo() {
-  await nextTick()
-  const video = videoRef.value
-  if (!video) return
-  video.load()
-  video.play().catch(() => {})
-}
-
-function toggleVideo() {
-  const video = videoRef.value
-  if (!video) return
-  if (video.paused) video.play().catch(() => {})
-  else video.pause()
-}
-
-watch(activeIndex, playCurrentVideo)
-
-onMounted(() => {
-  observer = new IntersectionObserver(([entry]) => {
-    if (!entry.isIntersecting) return
-    visible.value = true
-    playCurrentVideo()
-  }, { threshold: 0.22 })
-
-  if (sectionRef.value) observer.observe(sectionRef.value)
-})
-
-onUnmounted(() => observer?.disconnect())
 </script>
 
 <template>
-  <section ref="sectionRef" class="service-section" :class="{ visible }">
-    <SectionHeading title="社交营销服务" subtitle="连接品牌与世界 激发社交营销力" />
-
-    <div class="service-tabs-wrap">
-      <div class="service-tabs" role="tablist" aria-label="社交营销服务">
-        <button
-          v-for="(tab, index) in tabs"
-          :key="tab"
-          type="button"
-          role="tab"
-          :aria-selected="activeIndex === index"
-          :class="{ active: activeIndex === index }"
-          @click="setActive(index)"
-        >
-          {{ tab }}
-        </button>
-      </div>
+  <section class="service-section" aria-labelledby="service-title">
+    <div class="phone-peek" aria-hidden="true">
+      <span class="phone-speaker"></span>
+      <span class="phone-line"></span>
     </div>
 
-    <div class="service-body">
-      <div class="service-inner">
-        <article class="service-copy">
-          <Transition name="service-fade" mode="out-in">
-            <div :key="activeIndex" class="panel-content">
-              <template v-if="isAdPanel">
-                <h3>社交媒体深度商业合作伙伴</h3>
-                <div class="ad-platforms">
-                  <div v-for="item in platformCards" :key="item.name" class="platform-card">
-                    <span class="platform-app" :class="item.className">{{ item.name }}</span>
-                    <span class="platform-desc">{{ item.desc }}</span>
-                  </div>
-                </div>
-                <div class="oversea-platforms" aria-label="海外社交平台">
-                  <span
-                    v-for="item in platformLogos"
-                    :key="item.className"
-                    class="oversea-icon"
-                    :class="item.className"
-                  >
-                    {{ item.name }}
-                  </span>
-                </div>
-              </template>
+    <SectionHeading
+      id="service-title"
+      title="品牌定制服务"
+      subtitle="以品牌目标为驱动的定制化营销解决方案"
+    />
 
-              <template v-else-if="isTrainingPanel">
-                <h3>营销培训服务提供的服务项目及平台</h3>
-                <div class="training-grid">
-                  <div v-for="item in trainingItems" :key="item.title" class="training-card">
-                    <span class="training-icon" :class="item.icon"></span>
-                    <span class="training-text">
-                      <strong>{{ item.title }}</strong>
-                      <small>{{ item.desc }}</small>
-                    </span>
-                  </div>
-                </div>
-                <div class="training-platform-bar">
-                  <strong>培训课程涵盖主流营销平台</strong>
-                  <span class="training-platform-list">
-                    <span
-                      v-for="item in trainingPlatforms"
-                      :key="item.label"
-                      class="training-platform"
-                      :class="item.className"
-                    >
-                      {{ item.label }}
-                    </span>
-                  </span>
-                </div>
-              </template>
-
-              <template v-else>
-                <h3>{{ activeService.title }}</h3>
-                <img v-if="activeService.image" class="service-image" :src="activeService.image" :alt="activeService.title" loading="lazy" />
-              </template>
-
-              <a class="service-more" href="#consult">了解更多详情 »</a>
-            </div>
-          </Transition>
+    <div class="service-viewport">
+      <div class="service-rail" aria-label="品牌定制服务列表">
+        <article class="case-card">
+          <img :src="caseImage" alt="米家案例" loading="lazy" />
+          <div class="case-logo">
+            <span>米</span>
+          </div>
+          <strong>米家</strong>
         </article>
 
-        <button v-if="videoSrc" class="phone-demo" type="button" aria-label="播放或暂停手机视频" @click="toggleVideo">
-          <span class="phone-notch"></span>
-          <video
-            ref="videoRef"
-            class="phone-video"
-            :src="videoSrc"
-            muted
-            loop
-            playsinline
-            preload="auto"
-          ></video>
-        </button>
+        <article
+          v-for="(item, index) in serviceCards"
+          :key="item.title"
+          class="service-card"
+          :class="{ featured: item.featured }"
+        >
+          <span class="service-index">{{ String(index + 1).padStart(2, '0') }}</span>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.desc }}</p>
+          <a v-if="item.featured" href="#case" class="case-link">查看案例详情</a>
+        </article>
       </div>
     </div>
+
+    <div class="service-dots" aria-hidden="true">
+      <span class="active"></span>
+      <span v-for="dot in 7" :key="dot"></span>
+    </div>
+
+    <a class="service-more" href="#case">查看更多案例</a>
   </section>
 </template>
 
 <style scoped>
 .service-section {
-  padding: 70px 0 0;
-  background: #fff;
-  overflow: visible;
-}
-
-.service-tabs-wrap {
-  margin-top: 50px;
-  background: #f8f9fb;
-}
-
-.service-tabs {
-  width: min(1188px, calc(100% - 48px));
-  height: 72px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-}
-
-.service-tabs button {
   position: relative;
-  min-height: 72px;
-  border: 0;
-  background: transparent;
-  color: #11151d;
-  font-size: 18px;
-  font-weight: 800;
-  transition: color var(--motion-fast), background var(--motion-fast);
-}
-
-.service-tabs button.active {
-  color: var(--color-brand);
-  background: #ffe8e9;
-}
-
-.service-tabs button.active::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: var(--color-brand);
-}
-
-.service-body {
-  min-height: 594px;
-  background: #eef2f7;
-  overflow: visible;
-}
-
-.service-inner {
-  position: relative;
-  width: min(1188px, calc(100% - 48px));
-  height: 594px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 760px 300px;
-  justify-content: space-between;
-  align-items: start;
-}
-
-.service-copy {
-  padding-top: 60px;
-  opacity: 0;
-  transform: translateY(38px);
-  transition: opacity 880ms ease, transform 880ms cubic-bezier(.16, 1, .3, 1);
-}
-
-.panel-content {
-  min-height: 420px;
-}
-
-.panel-content h3 {
-  margin: 0 0 28px;
-  font-size: 28px;
-  line-height: 40px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
-
-.ad-platforms {
-  width: 748px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 18px;
-}
-
-.platform-card {
-  height: 180px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
+  padding: 126px 0 88px;
   background: #fff;
-  box-shadow: 0 12px 28px rgba(24, 37, 62, 0.1);
-}
-
-.platform-app {
-  width: 62px;
-  height: 62px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 800;
-}
-
-.platform-desc {
-  color: #8a8f99;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.wechat { background: #18c76b; }
-.weibo { background: linear-gradient(135deg, #ffd54d 0%, #ff363a 100%); }
-.redbook { background: #ff3046; }
-.bilibili { background: #fb5a9c; }
-.zhihu { background: #1478ff; }
-
-.oversea-platforms {
-  width: 748px;
-  height: 70px;
-  margin-top: 18px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: #fff;
-  box-shadow: 0 12px 26px rgba(24, 37, 62, 0.1);
-}
-
-.oversea-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 21px;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.oversea-icon.facebook { background: #1877f2; }
-.oversea-icon.instagram { background: radial-gradient(circle at 30% 105%, #feda75 0%, #fa7e1e 28%, #d62976 58%, #962fbf 78%, #4f5bd5 100%); }
-.oversea-icon.x { background: #000; }
-.oversea-icon.linkedin { background: #0a66c2; font-size: 18px; }
-.oversea-icon.reddit { background: #ff4500; text-transform: uppercase; }
-.oversea-icon.snapchat { background: #fffc00; color: #111; }
-.oversea-icon.pinterest { background: #e60023; }
-.oversea-icon.more { background: #ffeaed; color: #ff5660; font-size: 19px; }
-
-.training-grid {
-  width: 650px;
-  margin-left: 34px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-}
-
-.training-card {
-  height: 112px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 0 26px;
-  background: #fff;
-  box-shadow: 0 14px 30px rgba(26, 38, 66, 0.11);
-}
-
-.training-icon {
-  position: relative;
-  flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, #ff868a 0%, #ff3d45 100%);
-}
-
-.training-icon::after {
-  content: "";
-  position: absolute;
-  right: -5px;
-  bottom: -5px;
-  width: 22px;
-  height: 22px;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  background: rgba(255, 61, 69, 0.82);
-}
-
-.training-icon.doc::before {
-  content: "";
-  position: absolute;
-  left: 11px;
-  top: 11px;
-  width: 25px;
-  height: 4px;
-  border-radius: 4px;
-  background: #fff;
-  box-shadow: 0 10px 0 #fff, 0 20px 0 #fff;
-}
-
-.training-icon.shop::before,
-.training-icon.gear::before,
-.training-icon.grid::before {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border: 5px solid #fff;
-  border-radius: 50%;
-}
-
-.training-icon.grid::before {
-  inset: 10px;
-  border: 0;
-  border-radius: 4px;
-  background: #fff;
-  box-shadow: 18px 0 0 #fff, 0 18px 0 #fff, 18px 18px 0 #fff;
-  width: 12px;
-  height: 12px;
-}
-
-.training-text {
-  display: grid;
-  gap: 4px;
-  color: #3c4350;
-}
-
-.training-text strong {
-  font-size: 17px;
-  line-height: 24px;
-  color: #30343b;
-}
-
-.training-text small {
-  white-space: pre-line;
-  color: #5c6470;
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.training-platform-bar {
-  width: 650px;
-  height: 46px;
-  margin: 14px 0 0 34px;
-  border-radius: 999px;
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  align-items: center;
   overflow: hidden;
-  background: #ff5158;
-  box-shadow: 0 12px 26px rgba(255, 61, 69, 0.18);
 }
 
-.training-platform-bar strong {
-  color: #fff;
-  font-size: 17px;
-  text-align: center;
-}
-
-.training-platform-list {
-  height: 38px;
-  margin-right: 8px;
-  border: 3px solid rgba(255, 93, 100, 0.82);
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: #fff;
-}
-
-.training-platform {
-  min-width: 36px;
-  height: 28px;
-  border-radius: 7px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 7px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.service-image {
-  width: 748px;
-  height: auto;
-  display: block;
-  object-fit: contain;
-  filter: drop-shadow(0 18px 28px rgba(30, 48, 78, 0.08));
-}
-
-.service-more {
-  min-width: 168px;
-  min-height: 44px;
-  margin-top: 36px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-brand);
-  color: #fff;
-  font-size: 17px;
-  font-weight: 800;
-  box-shadow: var(--shadow-soft);
-}
-
-.phone-demo {
-  position: relative;
-  justify-self: end;
-  width: 270px;
-  height: 548px;
-  margin-top: 28px;
-  border: 8px solid #30333a;
-  border-radius: 34px;
-  padding: 0;
-  overflow: hidden;
-  background: #111;
-  box-shadow: 0 24px 42px rgba(13, 22, 36, 0.18);
-  opacity: 0;
-  transform: translateX(42px);
-  transition: opacity 880ms ease 130ms, transform 880ms cubic-bezier(.16, 1, .3, 1) 130ms;
-}
-
-.phone-demo::before,
-.phone-demo::after {
-  content: "";
+.phone-peek {
   position: absolute;
-  left: -11px;
-  z-index: 4;
-  width: 4px;
-  border-radius: 4px;
-  background: #30333a;
-}
-
-.phone-demo::before {
-  top: 96px;
-  height: 40px;
-}
-
-.phone-demo::after {
-  top: 144px;
-  height: 52px;
-}
-
-.phone-notch {
-  position: absolute;
+  top: -96px;
   left: 50%;
-  top: 11px;
-  z-index: 3;
+  width: 256px;
+  height: 256px;
+  border: 9px solid #33363b;
+  border-radius: 32px;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, #f7f7f7, #e7e9ee) border-box;
+  box-shadow: 0 32px 58px rgba(20, 23, 31, 0.16);
+  transform: translateX(220px);
+}
+
+.phone-speaker {
+  position: absolute;
+  top: 16px;
+  left: 50%;
   width: 58px;
-  height: 18px;
+  height: 16px;
   border-radius: 999px;
-  background: #30333a;
+  background: #33363b;
   transform: translateX(-50%);
 }
 
-.phone-video {
+.phone-line {
+  position: absolute;
+  left: 50%;
+  bottom: 13px;
+  width: 104px;
+  height: 4px;
+  border-radius: 999px;
+  background: #111;
+  transform: translateX(-50%);
+}
+
+:deep(.section-heading) {
+  margin-bottom: 76px;
+}
+
+:deep(.section-heading h2) {
+  font-size: 42px;
+  letter-spacing: 0;
+}
+
+:deep(.section-heading p) {
+  margin-top: 18px;
+  color: #767b86;
+  font-size: 20px;
+}
+
+.service-viewport {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.service-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.service-rail {
+  width: max-content;
+  min-width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding: 0 max(78px, calc((100vw - 1920px) / 2 + 78px));
+}
+
+.case-card,
+.service-card {
+  flex: 0 0 216px;
+  height: 252px;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.case-card {
+  position: relative;
+  color: #fff;
+  background: #1f242b;
+  box-shadow: 0 18px 34px rgba(17, 24, 39, 0.15);
+}
+
+.case-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.case-card img {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
 }
 
-.service-section.visible .service-copy,
-.service-section.visible .phone-demo {
-  opacity: 1;
-  transform: translate(0, 0);
+.case-logo {
+  position: absolute;
+  left: 30px;
+  bottom: 28px;
+  z-index: 1;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #55d579;
+  box-shadow: 0 10px 20px rgba(12, 88, 39, 0.22);
 }
 
-.service-fade-enter-active,
-.service-fade-leave-active {
-  transition: opacity 240ms ease, transform 240ms ease;
+.case-logo span {
+  color: #fff;
+  font-size: 27px;
+  line-height: 1;
+  font-weight: 900;
 }
 
-.service-fade-enter-from,
-.service-fade-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
+.case-card strong {
+  position: absolute;
+  left: 93px;
+  bottom: 43px;
+  z-index: 1;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.service-card {
+  position: relative;
+  padding: 64px 14px 24px;
+  background: #f2f3f6;
+}
+
+.service-card.featured {
+  flex-basis: 202px;
+  border-radius: 0 24px 24px 0;
+  background: #ef4f4f;
+  color: #fff;
+}
+
+.service-index {
+  position: absolute;
+  left: 16px;
+  top: 34px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 33px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.service-card:not(.featured) .service-index {
+  color: #fff;
+}
+
+.service-card h3 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #05070b;
+  font-size: 24px;
+  line-height: 1.22;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.service-card.featured h3 {
+  color: #fff;
+}
+
+.service-card p {
+  position: relative;
+  z-index: 1;
+  margin: 20px 0 0;
+  color: #737881;
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+.service-card.featured p {
+  color: #fff;
+  font-weight: 700;
+}
+
+.case-link {
+  position: absolute;
+  left: 22px;
+  bottom: 27px;
+  min-width: 146px;
+  height: 36px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.case-link::after,
+.service-more::after {
+  content: ">>";
+  margin-left: 4px;
+  letter-spacing: -2px;
+}
+
+.service-dots {
+  margin-top: 34px;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+
+.service-dots span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f0f0f0;
+}
+
+.service-dots .active {
+  background: #ef4f4f;
+}
+
+.service-more {
+  width: max-content;
+  margin: 46px auto 0;
+  display: flex;
+  align-items: center;
+  color: #8a8d94;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 600;
 }
 
 @media (max-width: 1180px) {
-  .service-tabs,
-  .service-inner {
-    width: min(1040px, calc(100% - 48px));
+  .service-section {
+    padding-top: 110px;
   }
 
-  .service-inner {
-    grid-template-columns: minmax(0, 1fr) 270px;
-    gap: 28px;
-  }
-
-  .ad-platforms,
-  .oversea-platforms,
-  .service-image {
-    width: 100%;
-  }
-
-  .training-grid,
-  .training-platform-bar {
-    width: calc(100% - 34px);
-  }
-}
-
-@media (max-width: 900px) {
-  .service-body {
-    min-height: auto;
-  }
-
-  .service-inner {
-    height: auto;
-    grid-template-columns: 1fr;
-    padding: 44px 0 64px;
-  }
-
-  .service-copy {
-    padding-top: 0;
-  }
-
-  .phone-demo {
-    justify-self: center;
-    margin-top: 10px;
+  .service-rail {
+    padding-inline: 48px;
   }
 }
 
 @media (max-width: 760px) {
   .service-section {
-    padding: 23px 0 0;
-    background: #fff;
+    padding: 76px 0 56px;
+  }
+
+  .phone-peek {
+    top: -176px;
+    width: 210px;
+    height: 230px;
+    transform: translateX(54px);
   }
 
   :deep(.section-heading) {
-    margin-bottom: 12px;
+    margin-bottom: 34px;
   }
 
   :deep(.section-heading h2) {
-    font-size: 20px;
-    line-height: 28px;
+    font-size: 28px;
   }
 
   :deep(.section-heading p) {
-    margin-top: 2px;
-    font-size: 11px;
-    line-height: 16px;
-  }
-
-  .service-tabs-wrap {
-    margin-top: 0;
-    background: #fff;
-  }
-
-  .service-tabs {
-    width: 100%;
-    height: 41px;
-    padding: 0 10px;
-    display: flex;
-    overflow-x: auto;
-    scrollbar-width: none;
-    gap: 0;
-  }
-
-  .service-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .service-tabs button {
-    flex: 0 0 auto;
-    min-width: 56px;
-    min-height: 41px;
-    padding: 0 8px;
-    background: transparent;
-    color: #111;
-    font-size: 11px;
-    font-weight: 700;
-  }
-
-  .service-tabs button.active {
-    color: var(--color-brand);
-    background: transparent;
-  }
-
-  .service-tabs button.active::after {
-    height: 2px;
-  }
-
-  .service-body {
-    min-height: 0;
-    background: #f3f6fb;
-  }
-
-  .service-inner {
-    width: 100%;
-    padding: 24px 12px 22px;
-    display: block;
-  }
-
-  .service-copy {
-    opacity: 1;
-    transform: none;
-  }
-
-  .panel-content {
-    min-height: 0;
-  }
-
-  .panel-content h3 {
-    margin: 0 0 14px;
-    text-align: left;
+    margin-top: 10px;
     font-size: 14px;
-    line-height: 20px;
   }
 
-  .ad-platforms {
-    width: 100%;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 7px;
+  .service-rail {
+    gap: 10px;
+    padding-inline: 18px;
   }
 
-  .platform-card {
-    height: 53px;
-    border-radius: 5px;
-    gap: 5px;
-    box-shadow: 0 4px 14px rgba(24, 37, 62, 0.08);
+  .case-card,
+  .service-card {
+    flex-basis: 156px;
+    height: 198px;
+    border-radius: 18px;
   }
 
-  .platform-app {
-    width: 26px;
-    height: 26px;
-    border-radius: 5px;
-    font-size: 9px;
+  .service-card.featured {
+    flex-basis: 166px;
+    border-radius: 0 18px 18px 0;
   }
 
-  .platform-desc {
-    font-size: 9px;
-    line-height: 12px;
-    white-space: nowrap;
+  .service-card {
+    padding: 52px 12px 18px;
   }
 
-  .oversea-platforms {
-    width: 100%;
-    height: 34px;
-    margin-top: 8px;
-    border-radius: 5px;
-    gap: 5px;
-    box-shadow: 0 4px 14px rgba(24, 37, 62, 0.08);
+  .service-index {
+    top: 24px;
+    font-size: 26px;
   }
 
-  .oversea-icon {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    font-size: 11px;
+  .service-card h3 {
+    font-size: 18px;
   }
 
-  .training-grid {
-    width: 100%;
-    margin-left: 0;
-    grid-template-columns: 1fr;
-    gap: 8px;
+  .service-card p {
+    margin-top: 12px;
+    font-size: 12px;
   }
 
-  .training-card {
-    height: 64px;
-    padding: 0 14px;
-    gap: 12px;
-    border-radius: 7px;
-  }
-
-  .training-icon {
-    width: 32px;
+  .case-link {
+    left: 14px;
+    bottom: 18px;
+    min-width: 128px;
     height: 32px;
-    border-radius: 8px;
+    font-size: 12px;
   }
 
-  .training-text strong {
-    font-size: 13px;
-    line-height: 18px;
+  .case-logo {
+    left: 18px;
+    bottom: 22px;
+    width: 42px;
+    height: 42px;
   }
 
-  .training-text small {
-    font-size: 11px;
-    line-height: 15px;
+  .case-card strong {
+    left: 68px;
+    bottom: 35px;
+    font-size: 15px;
   }
 
-  .training-grid,
-  .training-platform-bar {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .training-platform-bar {
-    height: auto;
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 8px;
-  }
-
-  .service-image {
-    width: 100%;
+  .service-dots {
+    margin-top: 28px;
+    gap: 10px;
   }
 
   .service-more {
-    min-width: 104px;
-    min-height: 26px;
-    margin: 14px auto 0;
-    font-size: 11px;
-  }
-
-  .phone-demo {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .service-copy,
-  .phone-demo {
-    opacity: 1;
-    transform: none;
-    transition: none;
+    margin-top: 34px;
+    font-size: 15px;
   }
 }
 </style>

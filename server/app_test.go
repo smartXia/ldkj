@@ -80,6 +80,32 @@ func TestSubmitFormValidatesRequiredFieldsAndSanitizesXSS(t *testing.T) {
 	}
 }
 
+func TestPublicAboutReturnsPublishedStaticPage(t *testing.T) {
+	store := newMemoryStore()
+	store.pages[1] = StaticPage{
+		ID:        1,
+		PageKey:   "about",
+		Title:     "关于我们",
+		ExtraData: `{"about":{"hero":{"title":"可编辑关于我们"}}}`,
+		Status:    "published",
+	}
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/public/about", nil)
+	app.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), `"page_key":"about"`) {
+		t.Fatalf("expected about page key, got %s", resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), `可编辑关于我们`) {
+		t.Fatalf("expected editable about payload, got %s", resp.Body.String())
+	}
+}
+
 func TestAdminAuthCrudCSVAndUpload(t *testing.T) {
 	store := newMemoryStore()
 	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test", UploadDir: t.TempDir()}, store)
