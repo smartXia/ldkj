@@ -17,12 +17,14 @@ const dotsLabel = '\u54c1\u724c\u5b9a\u5236\u670d\u52a1\u6848\u4f8b\u5207\u6362'
 
 const activeIndex = shallowRef(0)
 const moveDirection = shallowRef('next')
+const previewOpen = shallowRef(false)
 let timer
 
 const brandCases = computed(() => props.cases.map((item, index) => ({
   ...item,
   number: item.number || String(index + 1).padStart(2, '0'),
 })))
+const activeCase = computed(() => brandCases.value[activeIndex.value] || {})
 
 const brandBadges = [
   { logo: '\u7c73', name: '\u7c73\u5bb6', className: 'mijia' },
@@ -64,12 +66,39 @@ function previewCase(index) {
   setActive(index)
 }
 
+function openCasePreview(index = activeIndex.value) {
+  previewCase(index)
+  if (!brandCases.value[index]?.image) return
+  previewOpen.value = true
+  document.body.classList.add('modal-open')
+}
+
+function closeCasePreview() {
+  previewOpen.value = false
+  document.body.classList.remove('modal-open')
+  startAutoplay()
+}
+
+function handleKeydown(event) {
+  if (event.key === 'Escape' && previewOpen.value) {
+    closeCasePreview()
+  }
+}
+
 function dotLabel(title) {
   return `\u9884\u89c8${title}`
 }
 
-onMounted(startAutoplay)
-onUnmounted(stopAutoplay)
+onMounted(() => {
+  startAutoplay()
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  stopAutoplay()
+  window.removeEventListener('keydown', handleKeydown)
+  document.body.classList.remove('modal-open')
+})
 </script>
 
 <template>
@@ -83,8 +112,11 @@ onUnmounted(stopAutoplay)
           :key="item.number"
           class="case-item"
           :class="{ active: activeIndex === index }"
+          tabindex="0"
           @mouseenter="previewCase(index)"
           @focusin="previewCase(index)"
+          @click="openCasePreview(index)"
+          @keydown.enter.prevent="openCasePreview(index)"
         >
           <div class="case-expanded">
             <div class="case-photo">
@@ -98,7 +130,7 @@ onUnmounted(stopAutoplay)
               <span class="case-number">{{ item.number }}</span>
               <h3>{{ item.title }}</h3>
               <p>{{ item.summary }}</p>
-              <RouterLink class="case-detail" to="/case">{{ detailLabel }}</RouterLink>
+              <RouterLink class="case-detail" to="/case" @click.stop>{{ detailLabel }}</RouterLink>
             </div>
           </div>
 
@@ -125,6 +157,20 @@ onUnmounted(stopAutoplay)
     </div>
 
     <RouterLink class="more-cases" to="/case">{{ moreLabel }}</RouterLink>
+
+    <Teleport v-if="previewOpen" to="body">
+      <div class="brand-case-preview-modal" role="dialog" aria-modal="true" :aria-label="activeCase.title">
+        <button class="brand-case-preview-backdrop" type="button" aria-label="关闭图片预览" @click="closeCasePreview"></button>
+        <button class="brand-case-preview-close" type="button" aria-label="关闭" @click="closeCasePreview"></button>
+        <figure class="brand-case-preview-panel">
+          <img :src="activeCase.image" :alt="activeCase.summary || activeCase.title" />
+          <figcaption>
+            <strong>{{ activeCase.title }}</strong>
+            <span>{{ activeCase.summary }}</span>
+          </figcaption>
+        </figure>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -166,7 +212,12 @@ onUnmounted(stopAutoplay)
 
 .case-item.active {
   flex-basis: 464px;
-  cursor: default;
+  cursor: zoom-in;
+}
+
+.case-item:focus-visible {
+  outline: 3px solid rgba(255, 68, 75, 0.35);
+  outline-offset: 5px;
 }
 
 .case-static {
@@ -380,6 +431,7 @@ onUnmounted(stopAutoplay)
   color: #fff;
   font-size: 16px;
   font-weight: 800;
+  cursor: pointer;
 }
 
 .case-dots {
@@ -412,6 +464,91 @@ onUnmounted(stopAutoplay)
   color: #666;
   font-size: 19px;
   font-weight: 500;
+}
+
+.brand-case-preview-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 80px;
+}
+
+.brand-case-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(8, 12, 18, 0.64);
+}
+
+.brand-case-preview-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1060px, calc(100vw - 160px));
+  max-height: calc(100vh - 112px);
+  margin: 0;
+  overflow: auto;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.brand-case-preview-panel img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.brand-case-preview-panel figcaption {
+  min-height: 60px;
+  padding: 16px 24px 18px;
+  display: grid;
+  gap: 6px;
+  color: #222831;
+  background: #fff;
+}
+
+.brand-case-preview-panel strong {
+  font-size: 18px;
+  line-height: 22px;
+}
+
+.brand-case-preview-panel span {
+  color: #646a73;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.brand-case-preview-close {
+  position: fixed;
+  top: 30px;
+  right: 34px;
+  z-index: 2;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(39, 42, 49, 0.94);
+}
+
+.brand-case-preview-close::before,
+.brand-case-preview-close::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 22px;
+  width: 18px;
+  height: 2px;
+  background: #fff;
+}
+
+.brand-case-preview-close::before {
+  transform: rotate(45deg);
+}
+
+.brand-case-preview-close::after {
+  transform: rotate(-45deg);
 }
 
 @media (max-width: 980px) {
@@ -544,6 +681,45 @@ onUnmounted(stopAutoplay)
   .more-cases {
     min-height: 18px;
     font-size: 11px;
+  }
+
+  .brand-case-preview-modal {
+    padding: 52px 14px 28px;
+    align-items: flex-start;
+  }
+
+  .brand-case-preview-panel {
+    width: 100%;
+    max-height: calc(100vh - 80px);
+  }
+
+  .brand-case-preview-panel figcaption {
+    min-height: 50px;
+    padding: 12px 14px;
+  }
+
+  .brand-case-preview-panel strong {
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  .brand-case-preview-panel span {
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .brand-case-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand-case-preview-close::before,
+  .brand-case-preview-close::after {
+    left: 12px;
+    top: 19px;
+    width: 16px;
   }
 }
 </style>

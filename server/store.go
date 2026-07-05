@@ -16,6 +16,10 @@ type Store interface {
 	SaveSEO(context.Context, SEOSetting) (SEOSetting, error)
 	ListSEO(context.Context) ([]SEOSetting, error)
 	GetAdminUser(context.Context, string) (AdminUser, error)
+	ListAdminUsers(context.Context, ListOptions) (ListResult[AdminUser], error)
+	CreateAdminUser(context.Context, AdminUser, string) (AdminUser, error)
+	UpdateAdminUser(context.Context, int64, AdminUser, string) (AdminUser, error)
+	DeleteAdminUser(context.Context, int64) error
 
 	ListServices(context.Context, ListOptions) (ListResult[Service], error)
 	GetService(context.Context, string, bool) (Service, error)

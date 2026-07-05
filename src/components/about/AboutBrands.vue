@@ -153,9 +153,9 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="brand-map" aria-label="微思敦集团子品牌关系图">
+      <div class="brand-map" aria-label="灵动集团子品牌关系图">
         <img class="brand-map-bg" src="/assets/wsd/about/company-bg-pc.png" alt="" />
-        <div class="brand-center">微思敦集团</div>
+        <div class="brand-center">灵动集团</div>
         <div
           v-for="brand in orbitBrands"
           :key="brand.title"

@@ -14,6 +14,7 @@ const activeIndex = shallowRef(0)
 const sectionRef = shallowRef(null)
 const videoRef = shallowRef(null)
 const visible = shallowRef(false)
+const previewOpen = shallowRef(false)
 let observer
 
 const platformCards = [
@@ -68,6 +69,7 @@ const trainingPlatforms = [
 
 const serviceItems = computed(() => props.services)
 const activeService = computed(() => serviceItems.value[activeIndex.value] || {})
+const previewService = computed(() => activeService.value)
 const videoSrc = computed(() => '')
 const isAdPanel = computed(() => activeIndex.value === 0)
 const isTrainingPanel = computed(() => activeIndex.value === 2)
@@ -91,6 +93,23 @@ function toggleVideo() {
   else video.pause()
 }
 
+function openPreview() {
+  if (!previewService.value?.image) return
+  previewOpen.value = true
+  document.body.classList.add('modal-open')
+}
+
+function closePreview() {
+  previewOpen.value = false
+  document.body.classList.remove('modal-open')
+}
+
+function handleKeydown(event) {
+  if (event.key === 'Escape' && previewOpen.value) {
+    closePreview()
+  }
+}
+
 watch(activeIndex, playCurrentVideo)
 
 onMounted(() => {
@@ -101,9 +120,14 @@ onMounted(() => {
   }, { threshold: 0.22 })
 
   if (sectionRef.value) observer.observe(sectionRef.value)
+  window.addEventListener('keydown', handleKeydown)
 })
 
-onUnmounted(() => observer?.disconnect())
+onUnmounted(() => {
+  observer?.disconnect()
+  window.removeEventListener('keydown', handleKeydown)
+  document.body.classList.remove('modal-open')
+})
 </script>
 
 <template>
@@ -179,7 +203,15 @@ onUnmounted(() => observer?.disconnect())
 
               <template v-else>
                 <h3>{{ activeService.title }}</h3>
-                <img v-if="activeService.image" class="service-image" :src="activeService.image" :alt="activeService.title" loading="lazy" />
+                <button
+                  v-if="activeService.image"
+                  class="service-image-trigger"
+                  type="button"
+                  :aria-label="`查看${activeService.title}图片`"
+                  @click="openPreview"
+                >
+                  <img class="service-image" :src="activeService.image" :alt="activeService.title" loading="lazy" />
+                </button>
               </template>
 
               <a class="service-more" href="#consult">了解更多详情 »</a>
@@ -201,6 +233,17 @@ onUnmounted(() => observer?.disconnect())
         </button>
       </div>
     </div>
+
+    <Teleport v-if="previewOpen" to="body">
+      <div class="service-preview-modal" role="dialog" aria-modal="true" :aria-label="previewService.title">
+        <button class="service-preview-backdrop" type="button" aria-label="关闭服务图片预览" @click="closePreview"></button>
+        <button class="service-preview-close" type="button" aria-label="关闭" @click="closePreview"></button>
+        <figure class="service-preview-panel">
+          <img :src="previewService.image" :alt="previewService.title" />
+          <figcaption>{{ previewService.title }}</figcaption>
+        </figure>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -499,12 +542,98 @@ onUnmounted(() => observer?.disconnect())
   font-weight: 800;
 }
 
+.service-image-trigger {
+  width: 748px;
+  border: 0;
+  padding: 0;
+  display: block;
+  background: transparent;
+  cursor: zoom-in;
+  text-align: left;
+}
+
 .service-image {
   width: 748px;
   height: auto;
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 18px 28px rgba(30, 48, 78, 0.08));
+}
+
+.service-preview-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 80px;
+}
+
+.service-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(8, 12, 18, 0.64);
+}
+
+.service-preview-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1120px, calc(100vw - 160px));
+  max-height: calc(100vh - 112px);
+  margin: 0;
+  overflow: auto;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.service-preview-panel img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.service-preview-panel figcaption {
+  min-height: 52px;
+  margin: 0;
+  padding: 15px 24px 17px;
+  color: #222831;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 700;
+  background: #fff;
+}
+
+.service-preview-close {
+  position: fixed;
+  top: 30px;
+  right: 34px;
+  z-index: 2;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(39, 42, 49, 0.94);
+}
+
+.service-preview-close::before,
+.service-preview-close::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 22px;
+  width: 18px;
+  height: 2px;
+  background: #fff;
+}
+
+.service-preview-close::before {
+  transform: rotate(45deg);
+}
+
+.service-preview-close::after {
+  transform: rotate(-45deg);
 }
 
 .service-more {
@@ -609,6 +738,7 @@ onUnmounted(() => observer?.disconnect())
 
   .ad-platforms,
   .oversea-platforms,
+  .service-image-trigger,
   .service-image {
     width: 100%;
   }
@@ -814,6 +944,37 @@ onUnmounted(() => observer?.disconnect())
 
   .service-image {
     width: 100%;
+  }
+
+  .service-preview-modal {
+    padding: 52px 14px 28px;
+    align-items: flex-start;
+  }
+
+  .service-preview-panel {
+    width: 100%;
+    max-height: calc(100vh - 80px);
+  }
+
+  .service-preview-panel figcaption {
+    min-height: 44px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .service-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .service-preview-close::before,
+  .service-preview-close::after {
+    left: 12px;
+    top: 19px;
+    width: 16px;
   }
 
   .service-more {

@@ -82,6 +82,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("/api/admin/forms/export", a.auth(a.adminFormsExport))
 	a.mux.HandleFunc("/api/admin/forms", a.auth(a.adminForms))
 	a.mux.HandleFunc("/api/admin/forms/", a.auth(a.adminFormItem))
+	a.mux.HandleFunc("/api/admin/users", a.auth(a.requirePermission("user:manage", a.adminUsers)))
+	a.mux.HandleFunc("/api/admin/users/", a.auth(a.requirePermission("user:manage", a.adminUserItem)))
 	a.mux.HandleFunc("/api/admin/upload", a.auth(a.adminUpload))
 	a.mux.Handle("/oss/", http.StripPrefix("/oss/", http.FileServer(http.Dir(a.config.UploadDir))))
 }
@@ -272,6 +274,69 @@ func (a *App) adminDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"stats": stats, "activities": activities})
+}
+
+func (a *App) adminUsers(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		opts, err := listOptions(r, false)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		respond(w, must(a.store.ListAdminUsers(r.Context(), opts)))
+	case http.MethodPost:
+		input, err := readAdminUserInput(r)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if input.Password == "" {
+			writeError(w, badRequest("missing_password", "password is required"))
+			return
+		}
+		created, err := a.store.CreateAdminUser(r.Context(), input.AdminUser, input.Password)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		a.logAdmin(r, "create", "admin_users", created.ID)
+		writeJSON(w, http.StatusCreated, created)
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (a *App) adminUserItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseIntID(pathID(r.URL.Path, "/api/admin/users/"))
+	if !ok {
+		writeError(w, badRequest("invalid_id", "invalid user id"))
+		return
+	}
+	switch r.Method {
+	case http.MethodPut:
+		input, err := readAdminUserInput(r)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		updated, err := a.store.UpdateAdminUser(r.Context(), id, input.AdminUser, input.Password)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		a.logAdmin(r, "update", "admin_users", id)
+		writeJSON(w, http.StatusOK, updated)
+	case http.MethodDelete:
+		if err := a.store.DeleteAdminUser(r.Context(), id); err != nil {
+			writeError(w, err)
+			return
+		}
+		a.logAdmin(r, "delete", "admin_users", id)
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		methodNotAllowed(w)
+	}
 }
 
 func (a *App) adminServices(w http.ResponseWriter, r *http.Request) {
@@ -998,6 +1063,22 @@ func (a *App) auth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func (a *App) requirePermission(permission string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := tokenSubject(bearerToken(r), a.config.TokenSecret)
+		if username == a.config.AdminUser {
+			next(w, r)
+			return
+		}
+		user, err := a.store.GetAdminUser(r.Context(), username)
+		if err != nil || !adminUserHasPermission(user, permission) {
+			writeError(w, AppError{Status: http.StatusForbidden, Code: "forbidden", Message: "permission denied"})
+			return
+		}
+		next(w, r)
+	}
+}
+
 func (a *App) withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -1041,6 +1122,39 @@ func listOptions(r *http.Request, public bool) (ListOptions, error) {
 		opts.Status = "published"
 	}
 	return opts, nil
+}
+
+type adminUserInput struct {
+	AdminUser
+	Password string `json:"password"`
+}
+
+func readAdminUserInput(r *http.Request) (adminUserInput, error) {
+	var input adminUserInput
+	if err := readJSON(r, &input); err != nil {
+		return input, badRequest("invalid_json", "request body must be valid JSON")
+	}
+	input.Username = sanitizeText(input.Username)
+	input.RealName = sanitizeText(input.RealName)
+	input.Email = sanitizeText(input.Email)
+	input.Phone = sanitizeText(input.Phone)
+	input.Status = normalizeAdminStatus(input.Status)
+	cleanRoles := []string{}
+	seen := map[string]bool{}
+	for _, role := range input.Roles {
+		role = sanitizeText(role)
+		if role == "" || seen[role] {
+			continue
+		}
+		seen[role] = true
+		cleanRoles = append(cleanRoles, role)
+	}
+	input.Roles = cleanRoles
+	input.Permissions = nil
+	if input.Username == "" {
+		return input, badRequest("missing_username", "username is required")
+	}
+	return input, nil
 }
 
 func positiveInt(raw string, fallback, min, max int) (int, error) {

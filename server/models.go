@@ -173,9 +173,13 @@ type AdminUser struct {
 	Username     string   `json:"username"`
 	PasswordHash string   `json:"-"`
 	RealName     string   `json:"real_name,omitempty"`
+	Email        string   `json:"email,omitempty"`
+	Phone        string   `json:"phone,omitempty"`
 	Status       string   `json:"status"`
 	Roles        []string `json:"roles,omitempty"`
 	Permissions  []string `json:"permissions,omitempty"`
+	CreatedAt    string   `json:"created_at,omitempty"`
+	UpdatedAt    string   `json:"updated_at,omitempty"`
 }
 
 type MediaAsset struct {

@@ -7,6 +7,7 @@ import BrandCases from '../components/home/BrandCases.vue'
 import IntroStats from '../components/home/IntroStats.vue'
 import BrandWall from '../components/home/BrandWall.vue'
 import ContactCta from '../components/home/ContactCta.vue'
+import HomeAbout from '../components/home/HomeAbout.vue'
 import { getCases, getHomeContent, getServices } from '../services/publicApi'
 
 const emit = defineEmits(['open-consult'])
@@ -34,4 +35,5 @@ onMounted(async () => {
   <IntroStats />
   <BrandWall :logos="homeContent.logoList" />
   <ContactCta @open-consult="emit('open-consult')" />
+  <HomeAbout />
 </template>

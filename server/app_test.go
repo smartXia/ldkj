@@ -293,6 +293,72 @@ func TestAdminLoginUsesStoreUserRolesAndPermissions(t *testing.T) {
 	}
 }
 
+func TestAdminUsersCRUDReturnsRolesAndPermissions(t *testing.T) {
+	store := newMemoryStore()
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+	token := createToken("admin", "test", time.Hour)
+
+	create := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/users", strings.NewReader(`{"username":"editor","password":"secret","real_name":"Editor","roles":["editor"],"status":"active"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(create, req)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("expected user create success, got %d: %s", create.Code, create.Body.String())
+	}
+	if !strings.Contains(create.Body.String(), `"roles":["editor"]`) || !strings.Contains(create.Body.String(), `"content:write"`) {
+		t.Fatalf("expected created user roles and permissions, got %s", create.Body.String())
+	}
+
+	list := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(list, req)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"username":"editor"`) {
+		t.Fatalf("expected user list, got %d: %s", list.Code, list.Body.String())
+	}
+
+	update := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPut, "/api/admin/users/1", strings.NewReader(`{"username":"editor","real_name":"Content Editor","roles":["operator"],"status":"disabled"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(update, req)
+	if update.Code != http.StatusOK || !strings.Contains(update.Body.String(), `"status":"disabled"`) || !strings.Contains(update.Body.String(), `"form:read"`) {
+		t.Fatalf("expected user update with operator permissions, got %d: %s", update.Code, update.Body.String())
+	}
+
+	remove := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodDelete, "/api/admin/users/1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(remove, req)
+	if remove.Code != http.StatusNoContent {
+		t.Fatalf("expected user delete success, got %d: %s", remove.Code, remove.Body.String())
+	}
+}
+
+func TestAdminUsersRequireUserManagePermission(t *testing.T) {
+	store := newMemoryStore()
+	store.admins["editor"] = AdminUser{
+		ID:           2,
+		Username:     "editor",
+		PasswordHash: hashPassword("secret"),
+		Status:       "active",
+		Roles:        []string{"editor"},
+		Permissions:  []string{"content:read"},
+	}
+	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)
+	token := createToken("editor", "test", time.Hour)
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	app.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusForbidden {
+		t.Fatalf("expected user management to require permission, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
 func TestAdminBannersSupportMultipleItems(t *testing.T) {
 	store := newMemoryStore()
 	app := NewApp(Config{AdminUser: "admin", AdminPassword: "secret", TokenSecret: "test"}, store)

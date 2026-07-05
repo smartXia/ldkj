@@ -1,3 +1,5 @@
+import * as siteContent from '../data/siteContent.js'
+
 const API_BASE = import.meta.env.VITE_PUBLIC_API_BASE || ''
 const FRONTEND_ASSET_PREFIX = '/assets/'
 const NEWS_CATEGORY_LABELS = {
@@ -59,6 +61,8 @@ function normalizeHomeContent(content) {
     logo_url: site.logo,
     heroSlides: normalizeImageList(heroItems),
     marketingModules: normalizeImageList(data.marketingModules || data.marketing_modules),
+    services: normalizeImageList(data.services),
+    brandCases: normalizeImageList(data.brandCases || data.brand_cases),
     logoList: normalizeImageList(data.logoList || data.logos),
   }
 }
@@ -211,14 +215,14 @@ export function getHomeContent() {
         banners: bannerItems,
       })
     },
-    normalizeHomeContent({})
+    normalizeHomeContent(siteContent)
   )
 }
 
 export function getServices() {
   return withFallback(
     async () => normalizeImageList(unwrapList(await request('/api/services'), [])),
-    []
+    normalizeImageList(siteContent.services)
   )
 }
 
@@ -230,7 +234,7 @@ export function getServiceById(id) {
 }
 
 export function getCases() {
-  const fallback = { hero: {}, filters: [], items: [] }
+  const fallback = { hero: {}, filters: [], items: siteContent.brandCases }
 
   return withFallback(async () => {
     const payload = await request('/api/public/cases')

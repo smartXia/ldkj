@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { logout } from '../../services/adminApi'
+import { hasPermission, logout } from '../../services/adminApi'
 import '../styles.css'
 
 const route = useRoute()
@@ -9,15 +9,16 @@ const router = useRouter()
 
 const navItems = [
   { label: '仪表盘', path: '/admin', icon: 'dashboard' },
-  { label: '服务', path: '/admin/services', icon: 'services' },
-  { label: '案例', path: '/admin/cases', icon: 'cases' },
-  { label: '资讯', path: '/admin/news', icon: 'news' },
-  { label: 'Banner', path: '/admin/banners', icon: 'banner' },
-  { label: '页面', path: '/admin/pages', icon: 'pages' },
-  { label: 'FAQ', path: '/admin/faqs', icon: 'faq' },
-  { label: '表单', path: '/admin/forms', icon: 'forms' },
-  { label: '站点', path: '/admin/site', icon: 'site' },
-  { label: 'SEO', path: '/admin/seo', icon: 'seo' },
+  { label: '服务', path: '/admin/services', icon: 'services', permission: 'content:read' },
+  { label: '案例', path: '/admin/cases', icon: 'cases', permission: 'content:read' },
+  { label: '资讯', path: '/admin/news', icon: 'news', permission: 'content:read' },
+  { label: 'Banner', path: '/admin/banners', icon: 'banner', permission: 'banner:manage' },
+  { label: '页面', path: '/admin/pages', icon: 'pages', permission: 'content:read' },
+  { label: 'FAQ', path: '/admin/faqs', icon: 'faq', permission: 'content:read' },
+  { label: '表单', path: '/admin/forms', icon: 'forms', permission: 'form:read' },
+  { label: '站点', path: '/admin/site', icon: 'site', permission: 'settings:manage' },
+  { label: 'SEO', path: '/admin/seo', icon: 'seo', permission: 'settings:manage' },
+  { label: '用户', path: '/admin/users', icon: 'users', permission: 'user:manage' },
 ]
 
 const iconPaths = {
@@ -31,8 +32,10 @@ const iconPaths = {
   forms: 'M6 3h12v18H6V3Zm3 5h6M9 12h6M9 16h4',
   site: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2 2 3 5 3 9s-1 7-3 9M3 12h18',
   seo: 'M10 18a8 8 0 1 1 5.7-2.4L21 21l-2 2-5.2-5.3A8 8 0 0 1 10 18Zm-3-8h6M7 13h4',
+  users: 'M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0ZM4 21a8 8 0 0 1 16 0M19 8a3 3 0 0 1 0 6M21 21a6 6 0 0 0-4-5.7',
 }
 
+const visibleNavItems = computed(() => navItems.filter((item) => hasPermission(item.permission)))
 const pageTitle = computed(() => navItems.find((item) => item.path === route.path)?.label || '管理端')
 
 function handleLogout() {
@@ -50,7 +53,7 @@ function handleLogout() {
       </div>
       <nav class="admin-nav" aria-label="后台导航">
         <RouterLink
-          v-for="item in navItems"
+          v-for="item in visibleNavItems"
           :key="item.path"
           :to="item.path"
           :class="{ active: route.path === item.path }"

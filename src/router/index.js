@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { adminRoutes } from '../admin'
+import { getToken, hasPermission } from '../services/adminApi'
 
 const routes = [
   {
@@ -97,10 +98,26 @@ const routes = [
   },
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior() {
     return { top: 0 }
   },
 })
+
+router.beforeEach((to) => {
+  if (!to.path.startsWith('/admin') || to.path === '/admin/login') {
+    return true
+  }
+  if (!getToken()) {
+    return '/admin/login'
+  }
+  const permission = to.matched.find((record) => record.meta?.permission)?.meta.permission
+  if (permission && !hasPermission(permission)) {
+    return '/admin'
+  }
+  return true
+})
+
+export default router

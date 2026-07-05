@@ -188,6 +188,60 @@ func normalizeLog(item OperationLog) OperationLog {
 	return item
 }
 
+func normalizeAdminUser(user AdminUser) AdminUser {
+	user.Status = normalizeAdminStatus(user.Status)
+	if len(user.Permissions) == 0 {
+		user.Permissions = permissionsForRoles(user.Roles)
+	}
+	return user
+}
+
+func normalizeAdminStatus(status string) string {
+	if status == "disabled" {
+		return "disabled"
+	}
+	return "active"
+}
+
+func permissionsForRoles(roles []string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, role := range roles {
+		for _, permission := range rolePermissionCodes(role) {
+			if !seen[permission] {
+				seen[permission] = true
+				out = append(out, permission)
+			}
+		}
+	}
+	return out
+}
+
+func rolePermissionCodes(role string) []string {
+	switch role {
+	case "super_admin":
+		return []string{"content:read", "content:write", "content:delete", "banner:manage", "form:read", "form:process", "settings:manage", "user:manage", "log:read"}
+	case "editor":
+		return []string{"content:read", "content:write", "banner:manage"}
+	case "operator":
+		return []string{"content:read", "form:read", "form:process", "log:read"}
+	default:
+		return nil
+	}
+}
+
+func adminUserHasPermission(user AdminUser, permission string) bool {
+	if permission == "" {
+		return true
+	}
+	for _, item := range user.Permissions {
+		if item == "*" || item == permission {
+			return true
+		}
+	}
+	return false
+}
+
 func splitList(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

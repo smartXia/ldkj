@@ -33,6 +33,7 @@ type memoryStore struct {
 	nextMediaID        int64
 	nextNotificationID int64
 	nextLogID          int64
+	nextAdminID        int64
 }
 
 func newMemoryStore() *memoryStore {
@@ -62,6 +63,7 @@ func newMemoryStore() *memoryStore {
 		nextMediaID:        1,
 		nextNotificationID: 1,
 		nextLogID:          1,
+		nextAdminID:        1,
 	}
 }
 
@@ -209,7 +211,79 @@ func (m *memoryStore) GetAdminUser(_ context.Context, username string) (AdminUse
 	if !ok || item.Status == "disabled" {
 		return AdminUser{}, notFound("admin user not found")
 	}
-	return item, nil
+	return normalizeAdminUser(item), nil
+}
+
+func (m *memoryStore) ListAdminUsers(_ context.Context, opts ListOptions) (ListResult[AdminUser], error) {
+	items := make([]AdminUser, 0, len(m.admins))
+	for _, item := range m.admins {
+		if opts.Keyword != "" && !strings.Contains(strings.ToLower(item.Username+" "+item.RealName), strings.ToLower(opts.Keyword)) {
+			continue
+		}
+		if opts.Status != "" && item.Status != opts.Status {
+			continue
+		}
+		items = append(items, normalizeAdminUser(item))
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	return paginate(items, opts), nil
+}
+
+func (m *memoryStore) CreateAdminUser(_ context.Context, user AdminUser, password string) (AdminUser, error) {
+	user.ID = m.nextAdminID
+	m.nextAdminID++
+	user.Username = sanitizeText(user.Username)
+	user.RealName = sanitizeText(user.RealName)
+	user.Email = sanitizeText(user.Email)
+	user.Phone = sanitizeText(user.Phone)
+	user.Status = normalizeAdminStatus(user.Status)
+	user.PasswordHash = hashPassword(password)
+	user.CreatedAt = nowString()
+	user.UpdatedAt = user.CreatedAt
+	user = normalizeAdminUser(user)
+	m.admins[user.Username] = user
+	return user, nil
+}
+
+func (m *memoryStore) UpdateAdminUser(_ context.Context, id int64, user AdminUser, password string) (AdminUser, error) {
+	var old AdminUser
+	var oldKey string
+	for username, item := range m.admins {
+		if item.ID == id {
+			old = item
+			oldKey = username
+			break
+		}
+	}
+	if oldKey == "" {
+		return AdminUser{}, notFound("admin user not found")
+	}
+	user.ID = id
+	user.Username = sanitizeText(firstNonEmpty(user.Username, old.Username))
+	user.RealName = sanitizeText(user.RealName)
+	user.Email = sanitizeText(user.Email)
+	user.Phone = sanitizeText(user.Phone)
+	user.Status = normalizeAdminStatus(user.Status)
+	user.CreatedAt = old.CreatedAt
+	user.UpdatedAt = nowString()
+	user.PasswordHash = old.PasswordHash
+	if password != "" {
+		user.PasswordHash = hashPassword(password)
+	}
+	user = normalizeAdminUser(user)
+	delete(m.admins, oldKey)
+	m.admins[user.Username] = user
+	return user, nil
+}
+
+func (m *memoryStore) DeleteAdminUser(_ context.Context, id int64) error {
+	for username, item := range m.admins {
+		if item.ID == id {
+			delete(m.admins, username)
+			return nil
+		}
+	}
+	return notFound("admin user not found")
 }
 
 func (m *memoryStore) ListServices(_ context.Context, opts ListOptions) (ListResult[Service], error) {

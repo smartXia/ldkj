@@ -12,6 +12,7 @@ const expectedOrder = [
   '<IntroStats',
   '<BrandWall',
   '<ContactCta',
+  '<HomeAbout',
 ]
 
 let previousIndex = -1
@@ -23,6 +24,7 @@ for (const marker of expectedOrder) {
 }
 
 assert.match(homeSource, /getServices/)
+assert.match(homeSource, /HomeAbout/)
 assert.match(apiSource, /siteContent/)
 assert.match(apiSource, /marketingModules/)
 assert.match(apiSource, /services/)

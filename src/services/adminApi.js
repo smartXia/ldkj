@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_ADMIN_API_BASE || '/api/admin'
 const TOKEN_KEY = 'wsd_admin_token'
+const SESSION_KEY = 'wsd_admin_session'
 
 class AdminApiError extends Error {
   constructor(message, status, payload) {
@@ -20,6 +21,43 @@ function setToken(token) {
     return
   }
   window.localStorage.removeItem(TOKEN_KEY)
+}
+
+function getSession() {
+  const raw = window.localStorage.getItem(SESSION_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    window.localStorage.removeItem(SESSION_KEY)
+    return null
+  }
+}
+
+function setSession(payload) {
+  if (!payload) {
+    window.localStorage.removeItem(SESSION_KEY)
+    return
+  }
+  const user = payload.user || payload.data?.user || {}
+  const session = {
+    user,
+    roles: payload.roles || user.roles || payload.data?.roles || [],
+    permissions: payload.permissions || user.permissions || payload.data?.permissions || [],
+  }
+  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+}
+
+function clearSession() {
+  setToken('')
+  setSession(null)
+}
+
+function hasPermission(permission) {
+  if (!permission) return true
+  const session = getSession()
+  const permissions = session?.permissions || []
+  return permissions.includes('*') || permissions.includes(permission)
 }
 
 function buildUrl(path, params) {
@@ -69,7 +107,7 @@ async function request(path, options = {}) {
     body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
   })
 
-  if (response.status === 401) setToken('')
+  if (response.status === 401) clearSession()
   return parseResponse(response, options.expectJson !== false)
 }
 
@@ -90,11 +128,12 @@ async function login(credentials) {
   })
   const token = payload.token || payload.data?.token
   setToken(token)
+  setSession(payload)
   return payload
 }
 
 function logout() {
-  setToken('')
+  clearSession()
 }
 
 function list(resource, params) {
@@ -156,12 +195,15 @@ export {
   create,
   detail,
   exportFile,
+  getSession,
   getToken,
+  hasPermission,
   list,
   login,
   logout,
   remove,
   request,
+  setSession,
   setToken,
   update,
   upload,
@@ -171,12 +213,15 @@ export default {
   create,
   detail,
   exportFile,
+  getSession,
   getToken,
+  hasPermission,
   list,
   login,
   logout,
   remove,
   request,
+  setSession,
   setToken,
   update,
   upload,

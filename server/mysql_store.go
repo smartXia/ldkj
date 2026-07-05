@@ -203,14 +203,140 @@ func (s *mysqlStore) ListSEO(ctx context.Context) ([]SEOSetting, error) {
 
 func (s *mysqlStore) GetAdminUser(ctx context.Context, username string) (AdminUser, error) {
 	var user AdminUser
-	err := s.db.QueryRowContext(ctx, `SELECT id, username, password_hash, real_name, status FROM admin_users WHERE username = ? AND status = 'active'`, username).Scan(
-		&user.ID, &user.Username, &user.PasswordHash, &user.RealName, &user.Status)
+	err := s.db.QueryRowContext(ctx, `SELECT id, username, password_hash, real_name, email, phone, status, created_at, updated_at FROM admin_users WHERE username = ? AND status = 'active'`, username).Scan(
+		&user.ID, &user.Username, &user.PasswordHash, &user.RealName, &user.Email, &user.Phone, &user.Status, &user.CreatedAt, &user.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AdminUser{}, notFound("admin user not found")
 	}
 	if err != nil {
 		return AdminUser{}, err
 	}
+	return s.loadAdminUserRelations(ctx, user)
+}
+
+func (s *mysqlStore) ListAdminUsers(ctx context.Context, opts ListOptions) (ListResult[AdminUser], error) {
+	where := "WHERE 1=1"
+	args := []any{}
+	if opts.Keyword != "" {
+		where += " AND (username LIKE ? OR real_name LIKE ? OR email LIKE ?)"
+		kw := "%" + opts.Keyword + "%"
+		args = append(args, kw, kw, kw)
+	}
+	if opts.Status != "" {
+		where += " AND status = ?"
+		args = append(args, opts.Status)
+	}
+	total, err := s.count(ctx, "admin_users", where, args)
+	if err != nil {
+		return ListResult[AdminUser]{}, err
+	}
+	args = append(args, opts.PageSize, offset(opts))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, username, password_hash, real_name, email, phone, status, created_at, updated_at FROM admin_users `+where+` ORDER BY id DESC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return ListResult[AdminUser]{}, err
+	}
+	defer rows.Close()
+	items := []AdminUser{}
+	for rows.Next() {
+		var user AdminUser
+		if err := rows.Scan(&user.ID, &user.Username, &user.PasswordHash, &user.RealName, &user.Email, &user.Phone, &user.Status, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return ListResult[AdminUser]{}, err
+		}
+		user, err = s.loadAdminUserRelations(ctx, user)
+		if err != nil {
+			return ListResult[AdminUser]{}, err
+		}
+		items = append(items, user)
+	}
+	return ListResult[AdminUser]{Items: items, Total: total, Page: opts.Page, PageSize: opts.PageSize}, rows.Err()
+}
+
+func (s *mysqlStore) CreateAdminUser(ctx context.Context, user AdminUser, password string) (AdminUser, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AdminUser{}, err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `INSERT INTO admin_users (username, password_hash, real_name, email, phone, status) VALUES (?, ?, ?, ?, ?, ?)`,
+		user.Username, hashPassword(password), user.RealName, user.Email, user.Phone, normalizeAdminStatus(user.Status))
+	if err != nil {
+		return AdminUser{}, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return AdminUser{}, err
+	}
+	if err := replaceAdminUserRoles(ctx, tx, id, user.Roles); err != nil {
+		return AdminUser{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AdminUser{}, err
+	}
+	return s.adminUserByID(ctx, id)
+}
+
+func (s *mysqlStore) UpdateAdminUser(ctx context.Context, id int64, user AdminUser, password string) (AdminUser, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AdminUser{}, err
+	}
+	defer tx.Rollback()
+	var result sql.Result
+	if password != "" {
+		result, err = tx.ExecContext(ctx, `UPDATE admin_users SET username = ?, password_hash = ?, real_name = ?, email = ?, phone = ?, status = ? WHERE id = ?`,
+			user.Username, hashPassword(password), user.RealName, user.Email, user.Phone, normalizeAdminStatus(user.Status), id)
+	} else {
+		result, err = tx.ExecContext(ctx, `UPDATE admin_users SET username = ?, real_name = ?, email = ?, phone = ?, status = ? WHERE id = ?`,
+			user.Username, user.RealName, user.Email, user.Phone, normalizeAdminStatus(user.Status), id)
+	}
+	if err != nil {
+		return AdminUser{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return AdminUser{}, err
+	}
+	if affected == 0 {
+		return AdminUser{}, notFound("admin user not found")
+	}
+	if err := replaceAdminUserRoles(ctx, tx, id, user.Roles); err != nil {
+		return AdminUser{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AdminUser{}, err
+	}
+	return s.adminUserByID(ctx, id)
+}
+
+func (s *mysqlStore) DeleteAdminUser(ctx context.Context, id int64) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM admin_users WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return notFound("admin user not found")
+	}
+	return nil
+}
+
+func (s *mysqlStore) adminUserByID(ctx context.Context, id int64) (AdminUser, error) {
+	var user AdminUser
+	err := s.db.QueryRowContext(ctx, `SELECT id, username, password_hash, real_name, email, phone, status, created_at, updated_at FROM admin_users WHERE id = ?`, id).Scan(
+		&user.ID, &user.Username, &user.PasswordHash, &user.RealName, &user.Email, &user.Phone, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return AdminUser{}, notFound("admin user not found")
+	}
+	if err != nil {
+		return AdminUser{}, err
+	}
+	return s.loadAdminUserRelations(ctx, user)
+}
+
+func (s *mysqlStore) loadAdminUserRelations(ctx context.Context, user AdminUser) (AdminUser, error) {
 	roleRows, err := s.db.QueryContext(ctx, `SELECT r.code FROM roles r JOIN admin_user_roles aur ON aur.role_id = r.id WHERE aur.user_id = ? ORDER BY r.id`, user.ID)
 	if err != nil {
 		return AdminUser{}, err
@@ -238,7 +364,22 @@ func (s *mysqlStore) GetAdminUser(ctx context.Context, username string) (AdminUs
 		}
 		user.Permissions = append(user.Permissions, permission)
 	}
-	return user, permRows.Err()
+	if err := permRows.Err(); err != nil {
+		return AdminUser{}, err
+	}
+	return normalizeAdminUser(user), nil
+}
+
+func replaceAdminUserRoles(ctx context.Context, tx *sql.Tx, userID int64, roles []string) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM admin_user_roles WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO admin_user_roles (user_id, role_id) SELECT ?, id FROM roles WHERE code = ?`, userID, role); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *mysqlStore) ListServices(ctx context.Context, opts ListOptions) (ListResult[Service], error) {
